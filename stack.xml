@@ -1,0 +1,9 @@
+<stack>
+  <description brief="hendrix">Austin's personal modules</description>
+  <author>Maintained by Austin Hendrix</author>
+  <license>BSD</license>  
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/hendrix</url>
+  <depend stack="ros" />
+
+</stack>
