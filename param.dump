@@ -1,0 +1,7 @@
+hokuyo_node: {allow_unsafe_settings: false, calibrate_time: false, cluster: 1, frame_id: laser,
+  intensity: false, max_ang: 1.57079632679, max_ang_limit: 2.0923497676849365, max_range: 5.5999999046325684,
+  min_ang: -1.57079632679, min_ang_limit: -2.0862138271331787, min_range: 0.019999999552965164,
+  port: /dev/ttyACM0, skip: 0, time_offset: 0.0}
+roslaunch:
+  uris: {host_kitt__46467: 'http://kitt:46467/'}
+run_id: 1a9e821a-c150-11d3-9b95-000db91dc374
