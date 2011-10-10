@@ -1,0 +1,15 @@
+<package>
+  <description brief="teleop">
+
+     teleop
+
+  </description>
+  <author>Austin Hendrix</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/teleop</url>
+  <depend package="rospy"/>
+
+</package>
+
+
