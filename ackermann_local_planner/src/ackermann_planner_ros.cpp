@@ -43,11 +43,10 @@
 PLUGINLIB_DECLARE_CLASS(ackermann_local_planner, AckermannPlannerROS, ackermann_local_planner::AckermannPlannerROS, nav_core::BaseLocalPlanner)
 
 namespace ackermann_local_planner {
-  void AckermannPlannerROS::initialize(std::string name, tf::TransformListener* tf,
-      costmap_2d::Costmap2DROS* costmap_ros){
+  void AckermannPlannerROS::initialize(std::string name,
+      tf::TransformListener* tf, costmap_2d::Costmap2DROS* costmap_ros){
     if(!initialized_){
       tf_ = tf;
-      rotating_to_goal_ = false;
 
       costmap_ros_ = costmap_ros;
 
@@ -66,17 +65,21 @@ namespace ackermann_local_planner {
 
       pn.param("latch_xy_goal_tolerance", latch_xy_goal_tolerance_, false);
 
-      //to get odometry information, we need to get a handle to the topic in the global namespace
+      //to get odometry information, we need to get a handle to the topic in
+      // the global namespace
       ros::NodeHandle gn;
-      odom_sub_ = gn.subscribe<nav_msgs::Odometry>("odom", 1, boost::bind(&AckermannPlannerROS::odomCallback, this, _1));
+      odom_sub_ = gn.subscribe<nav_msgs::Odometry>("odom", 1,
+          boost::bind(&AckermannPlannerROS::odomCallback, this, _1));
 
       pn.param("max_rot_vel", max_vel_th_, 1.0);
       min_vel_th_ = -1.0 * max_vel_th_;
 
       pn.param("min_rot_vel", min_rot_vel_, 0.4);
 
-      //create the actual planner that we'll use.. it'll configure itself from the parameter server
-      dp_ = boost::shared_ptr<AckermannPlanner>(new AckermannPlanner(name, costmap_ros_));
+      //create the actual planner that we'll use.. it'll configure itself from
+      // the parameter server
+      dp_ = boost::shared_ptr<AckermannPlanner>(new AckermannPlanner(name,
+          costmap_ros_));
 
       initialized_ = true;
     }
@@ -85,34 +88,48 @@ namespace ackermann_local_planner {
     }
   }
 
-  void AckermannPlannerROS::odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
+  void AckermannPlannerROS::odomCallback(const nav_msgs::Odometry::ConstPtr&
+      msg){
     //we assume that the odometry is published in the frame of the base
-    boost::mutex::scoped_lock(odom_mutex_);
+    boost::mutex::scoped_lock lock(odom_mutex_);
     base_odom_.twist.twist.linear.x = msg->twist.twist.linear.x;
     base_odom_.twist.twist.linear.y = msg->twist.twist.linear.y;
     base_odom_.twist.twist.angular.z = msg->twist.twist.angular.z;
-    ROS_DEBUG_NAMED("ackermann_local_planner", "In the odometry callback with velocity values: (%.2f, %.2f, %.2f)",
-        base_odom_.twist.twist.linear.x, base_odom_.twist.twist.linear.y, base_odom_.twist.twist.angular.z);
+    ROS_DEBUG_NAMED("ackermann_local_planner",
+        "In the odometry callback with velocity values: (%.2f, %.2f, %.2f)",
+        base_odom_.twist.twist.linear.x, base_odom_.twist.twist.linear.y,
+        base_odom_.twist.twist.angular.z);
   }
 
-  bool AckermannPlannerROS::stopWithAccLimits(const tf::Stamped<tf::Pose>& global_pose, const tf::Stamped<tf::Pose>& robot_vel, geometry_msgs::Twist& cmd_vel){
+  bool AckermannPlannerROS::stopWithAccLimits(
+      const tf::Stamped<tf::Pose>& global_pose,
+      const tf::Stamped<tf::Pose>& robot_vel,
+      geometry_msgs::Twist& cmd_vel) {
     Eigen::Vector3f acc_lim = dp_->getAccLimits();
-    //slow down with the maximum possible acceleration... we should really use the frequency that we're running at to determine what is feasible
-    //but we'll use a tenth of a second to be consistent with the implementation of the local planner.
-    double vx = sign(robot_vel.getOrigin().x()) * std::max(0.0, (fabs(robot_vel.getOrigin().x()) - acc_lim[0] * dp_->getSimPeriod()));
-    double vy = sign(robot_vel.getOrigin().y()) * std::max(0.0, (fabs(robot_vel.getOrigin().y()) - acc_lim[1] * dp_->getSimPeriod()));
+    //slow down with the maximum possible acceleration... we should really use
+    // the frequency that we're running at to determine what is feasible
+    // but we'll use a tenth of a second to be consistent with the
+    // implementation of the local planner.
+    double vx = sign(robot_vel.getOrigin().x()) * std::max(0.0, 
+        (fabs(robot_vel.getOrigin().x()) - acc_lim[0] * dp_->getSimPeriod()));
+    double vy = sign(robot_vel.getOrigin().y()) * std::max(0.0, 
+        (fabs(robot_vel.getOrigin().y()) - acc_lim[1] * dp_->getSimPeriod()));
 
     double vel_yaw = tf::getYaw(robot_vel.getRotation());
-    double vth = sign(vel_yaw) * std::max(0.0, (fabs(vel_yaw) - acc_lim[2] * dp_->getSimPeriod()));
+    double vth = sign(vel_yaw) * std::max(0.0, 
+        (fabs(vel_yaw) - acc_lim[2] * dp_->getSimPeriod()));
 
     //we do want to check whether or not the command is valid
     double yaw = tf::getYaw(global_pose.getRotation());
-    bool valid_cmd = dp_->checkTrajectory(Eigen::Vector3f(global_pose.getOrigin().getX(), global_pose.getOrigin().getY(), yaw),
-                                          Eigen::Vector3f(vx, vy, vth));
+    bool valid_cmd = dp_->checkTrajectory(Eigen::Vector3f(
+          global_pose.getOrigin().getX(), global_pose.getOrigin().getY(), yaw),
+        Eigen::Vector3f(vx, vy, vth));
 
-    //if we have a valid command, we'll pass it on, otherwise we'll command all zeros
+    //if we have a valid command, we'll pass it on, otherwise we'll command 
+    // all zeros
     if(valid_cmd){
-      ROS_DEBUG_NAMED("ackermann_local_planner", "Slowing down... using vx, vy, vth: %.2f, %.2f, %.2f", vx, vy, vth);
+      ROS_DEBUG_NAMED("ackermann_local_planner",
+          "Slowing down... using vx, vy, vth: %.2f, %.2f, %.2f", vx, vy, vth);
       cmd_vel.linear.x = vx;
       cmd_vel.linear.y = vy;
       cmd_vel.angular.z = vth;
@@ -123,48 +140,6 @@ namespace ackermann_local_planner {
     cmd_vel.linear.y = 0.0;
     cmd_vel.angular.z = 0.0;
     return false;
-  }
-
-  bool AckermannPlannerROS::rotateToGoal(const tf::Stamped<tf::Pose>& global_pose, const tf::Stamped<tf::Pose>& robot_vel, double goal_th, geometry_msgs::Twist& cmd_vel){
-    Eigen::Vector3f acc_lim = dp_->getAccLimits();
-    double yaw = tf::getYaw(global_pose.getRotation());
-    double vel_yaw = tf::getYaw(robot_vel.getRotation());
-    cmd_vel.linear.x = 0;
-    cmd_vel.linear.y = 0;
-    double ang_diff = angles::shortest_angular_distance(yaw, goal_th);
-
-    double v_theta_samp = ang_diff > 0.0 ? std::min(max_vel_th_,
-        std::max(min_rot_vel_, ang_diff)) : std::max(min_vel_th_,
-        std::min(-1.0 * min_rot_vel_, ang_diff));
-
-    //take the acceleration limits of the robot into account
-    double max_acc_vel = fabs(vel_yaw) + acc_lim[2] * dp_->getSimPeriod();
-    double min_acc_vel = fabs(vel_yaw) - acc_lim[2] * dp_->getSimPeriod();
-
-    v_theta_samp = sign(v_theta_samp) * std::min(std::max(fabs(v_theta_samp), min_acc_vel), max_acc_vel);
-
-    //we also want to make sure to send a velocity that allows us to stop when we reach the goal given our acceleration limits
-    double max_speed_to_stop = sqrt(2 * acc_lim[2] * fabs(ang_diff)); 
-
-    v_theta_samp = sign(v_theta_samp) * std::min(max_speed_to_stop, fabs(v_theta_samp));
-
-    if(fabs(v_theta_samp) < min_rot_vel_)
-      v_theta_samp = sign(v_theta_samp) * min_rot_vel_;
-
-    //we still want to lay down the footprint of the robot and check if the action is legal
-    bool valid_cmd = dp_->checkTrajectory(Eigen::Vector3f(global_pose.getOrigin().getX(), global_pose.getOrigin().getY(), yaw),
-                                          Eigen::Vector3f( 0.0, 0.0, v_theta_samp));
-
-    ROS_DEBUG_NAMED("ackermann_local_planner", "Moving to desired goal orientation, th cmd: %.2f, valid_cmd: %d", v_theta_samp, valid_cmd);
-
-    if(valid_cmd){
-      cmd_vel.angular.z = v_theta_samp;
-      return true;
-    }
-
-    cmd_vel.angular.z = 0.0;
-    return false;
-
   }
 
   bool AckermannPlannerROS::computeVelocityCommands(geometry_msgs::Twist& cmd_vel){
@@ -182,7 +157,8 @@ namespace ackermann_local_planner {
     costmap_ros_->getCostmapCopy(costmap);
     std::vector<geometry_msgs::PoseStamped> transformed_plan;
     //get the global plan in our frame
-    if(!base_local_planner::transformGlobalPlan(*tf_, global_plan_, *costmap_ros_, costmap_ros_->getGlobalFrameID(), transformed_plan)){
+    if(!base_local_planner::transformGlobalPlan(*tf_, global_plan_, 
+          *costmap_ros_, costmap_ros_->getGlobalFrameID(), transformed_plan)){
       ROS_WARN("Could not transform the global plan to the frame of the controller");
       return false;
     }
@@ -190,7 +166,6 @@ namespace ackermann_local_planner {
     //now we'll prune the plan based on the position of the robot
     if(prune_plan_)
       base_local_planner::prunePlan(global_pose, transformed_plan, global_plan_);
-
 
     //we also want to clear the robot footprint from the costmap we're using
     costmap_ros_->clearRobotFootprint();
@@ -209,7 +184,9 @@ namespace ackermann_local_planner {
     drive_cmds.frame_id_ = costmap_ros_->getBaseFrameID();
 
     tf::Stamped<tf::Pose> robot_vel;
-    robot_vel.setData(btTransform(tf::createQuaternionFromYaw(global_vel.angular.z), btVector3(global_vel.linear.x, global_vel.linear.y, 0)));
+    robot_vel.setData(btTransform(
+          tf::createQuaternionFromYaw(global_vel.angular.z), 
+          btVector3(global_vel.linear.x, global_vel.linear.y, 0)));
     robot_vel.frame_id_ = costmap_ros_->getBaseFrameID();
     robot_vel.stamp_ = ros::Time();
 
@@ -234,9 +211,10 @@ namespace ackermann_local_planner {
     double goal_th = yaw;
 
     //check to see if we've reached the goal position
-    if(base_local_planner::goalPositionReached(global_pose, goal_x, goal_y, xy_goal_tolerance_) || xy_tolerance_latch_){
-      //if the user wants to latch goal tolerance, if we ever reach the goal location, we'll
-      //just rotate in place
+    if(base_local_planner::goalPositionReached(global_pose, goal_x, goal_y, 
+          xy_goal_tolerance_) || xy_tolerance_latch_){
+      //if the user wants to latch goal tolerance, if we ever reach the goal
+      // location, we'll just rotate in place
       if(latch_xy_goal_tolerance_)
         xy_tolerance_latch_ = true;
 
@@ -246,7 +224,6 @@ namespace ackermann_local_planner {
         cmd_vel.linear.x = 0.0;
         cmd_vel.linear.y = 0.0;
         cmd_vel.angular.z = 0.0;
-        rotating_to_goal_ = false;
         xy_tolerance_latch_ = false;
       }
       else {
@@ -258,33 +235,31 @@ namespace ackermann_local_planner {
         //copy over the odometry information
         nav_msgs::Odometry base_odom;
         {
-          boost::recursive_mutex::scoped_lock(odom_lock_);
+          boost::mutex::scoped_lock lock(odom_mutex_);
           base_odom = base_odom_;
         }
 
         //if we're not stopped yet... we want to stop... taking into account the acceleration limits of the robot
-        if(!rotating_to_goal_ && !base_local_planner::stopped(base_odom, rot_stopped_vel_, trans_stopped_vel_)){
+        if(!base_local_planner::stopped(base_odom, rot_stopped_vel_, trans_stopped_vel_)){
           if(!stopWithAccLimits(global_pose, robot_vel, cmd_vel))
-            return false;
-        }
-        //if we're stopped... then we want to rotate to goal
-        else{
-          //set this so that we know its OK to be moving
-          rotating_to_goal_ = true;
-          if(!rotateToGoal(global_pose, robot_vel, goal_th, cmd_vel))
             return false;
         }
       }
 
       //publish an empty plan because we've reached our goal position
-      base_local_planner::publishPlan(transformed_plan, g_plan_pub_, 0.0, 1.0, 0.0, 0.0);
-      base_local_planner::publishPlan(local_plan, l_plan_pub_, 0.0, 0.0, 1.0, 0.0);
+      base_local_planner::publishPlan(transformed_plan, g_plan_pub_, 0.0, 1.0,
+          0.0, 0.0);
+      base_local_planner::publishPlan(local_plan, l_plan_pub_, 0.0, 0.0, 1.0,
+          0.0);
 
-      //we don't actually want to run the controller when we're just rotating to goal
+      //we don't actually want to run the controller when we're just rotating
+      // to goal
       return true;
     }
 
-    ROS_DEBUG_NAMED("ackermann_local_planner", "Received a transformed plan with %zu points.", transformed_plan.size());
+    ROS_DEBUG_NAMED("ackermann_local_planner",
+        "Received a transformed plan with %zu points.",
+        transformed_plan.size());
     dp_->updatePlan(transformed_plan);
 
     //compute what trajectory to drive along
@@ -311,13 +286,16 @@ namespace ackermann_local_planner {
       ROS_DEBUG_NAMED("ackermann_local_planner", 
           "The ackermann local planner failed to find a valid plan. This means that the footprint of the robot was in collision for all simulated trajectories.");
       local_plan.clear();
-      base_local_planner::publishPlan(transformed_plan, g_plan_pub_, 0.0, 1.0, 0.0, 0.0);
-      base_local_planner::publishPlan(local_plan, l_plan_pub_, 0.0, 0.0, 1.0, 0.0);
+      base_local_planner::publishPlan(transformed_plan, g_plan_pub_, 0.0, 1.0,
+          0.0, 0.0);
+      base_local_planner::publishPlan(local_plan, l_plan_pub_, 0.0, 0.0, 1.0,
+          0.0);
       return false;
     }
 
-    ROS_DEBUG_NAMED("ackermann_local_planner", "A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.", 
-                    cmd_vel.linear.x, cmd_vel.linear.y, yaw);
+    ROS_DEBUG_NAMED("ackermann_local_planner",
+        "A valid velocity command of (%.2f, %.2f, %.2f) was found for this cycle.", 
+        cmd_vel.linear.x, cmd_vel.linear.y, yaw);
 
     // Fill out the local plan
     for(unsigned int i = 0; i < path.getPointsSize(); ++i){
@@ -331,8 +309,10 @@ namespace ackermann_local_planner {
     }
 
     //publish information to the visualizer
-    base_local_planner::publishPlan(transformed_plan, g_plan_pub_, 0.0, 1.0, 0.0, 0.0);
-    base_local_planner::publishPlan(local_plan, l_plan_pub_, 0.0, 0.0, 1.0, 0.0);
+    base_local_planner::publishPlan(transformed_plan, g_plan_pub_, 0.0, 1.0,
+        0.0, 0.0);
+    base_local_planner::publishPlan(local_plan, l_plan_pub_, 0.0, 0.0, 1.0,
+        0.0);
     return true;
   }
 
@@ -345,12 +325,13 @@ namespace ackermann_local_planner {
     //copy over the odometry information
     nav_msgs::Odometry base_odom;
     {
-    boost::recursive_mutex::scoped_lock(odom_lock_);
+      boost::mutex::scoped_lock lock(odom_mutex_);
       base_odom = base_odom_;
     }
 
-    return base_local_planner::isGoalReached(*tf_, global_plan_, *costmap_ros_, costmap_ros_->getGlobalFrameID(), base_odom, 
-        rot_stopped_vel_, trans_stopped_vel_, xy_goal_tolerance_, yaw_goal_tolerance_);
+    return base_local_planner::isGoalReached(*tf_, global_plan_, *costmap_ros_,
+        costmap_ros_->getGlobalFrameID(), base_odom, rot_stopped_vel_, 
+        trans_stopped_vel_, xy_goal_tolerance_, yaw_goal_tolerance_);
   }
 
   bool AckermannPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan){
@@ -363,7 +344,8 @@ namespace ackermann_local_planner {
     global_plan_.clear();
     global_plan_ = orig_global_plan;
 
-    //when we get a new plan, we also want to clear any latch we may have on goal tolerances
+    //when we get a new plan, we also want to clear any latch we may have on
+    // goal tolerances
     xy_tolerance_latch_ = false;
 
     return true;

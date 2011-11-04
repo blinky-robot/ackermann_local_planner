@@ -33,6 +33,7 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *
 * Author: Eitan Marder-Eppstein
+* Author: Austin Hendrix
 *********************************************************************/
 #include <ackermann_local_planner/ackermann_planner.h>
 #include <angles/angles.h>
@@ -54,16 +55,7 @@ namespace ackermann_local_planner {
     max_vel_x_ = config.max_vel_x;
     min_vel_x_ = config.min_vel_x;
  
-    max_vel_y_ = config.max_vel_y;
-    min_vel_y_ = config.min_vel_y;
- 
-    min_vel_trans_ = config.min_trans_vel;
-    max_vel_trans_ = config.max_trans_vel;
- 
-    max_vel_th_ = config.max_rot_vel;
-    min_vel_th_ = -1.0 * max_vel_th_;
- 
-    min_rot_vel_ = config.min_rot_vel;
+    min_radius_ = config.min_radius;
  
     sim_time_ = config.sim_time;
     sim_granularity_ = config.sim_granularity;
@@ -78,10 +70,9 @@ namespace ackermann_local_planner {
     scaling_speed_ = config.scaling_speed;
     max_scaling_factor_ = config.max_scaling_factor;
  
-    int vx_samp, vy_samp, vth_samp;
+    int vx_samp, radius_samp;
     vx_samp = config.vx_samples;
-    vy_samp = config.vy_samples;
-    vth_samp = config.vth_samples;
+    radius_samp = config.radius_samples;
  
     if(vx_samp <= 0){
       ROS_WARN("You've specified that you don't want any samples in the x dimension. We'll at least assume that you want to sample one value... so we're going to set vx_samples to 1 instead");
@@ -89,39 +80,40 @@ namespace ackermann_local_planner {
       config.vx_samples = vx_samp;
     }
  
-    if(vy_samp <= 0){
-      ROS_WARN("You've specified that you don't want any samples in the y dimension. We'll at least assume that you want to sample one value... so we're going to set vy_samples to 1 instead");
-      vy_samp = 1;
-      config.vy_samples = vy_samp;
-    }
- 
-    if(vth_samp <= 0){
+    if(radius_samp <= 0){
       ROS_WARN("You've specified that you don't want any samples in the th dimension. We'll at least assume that you want to sample one value... so we're going to set vth_samples to 1 instead");
-      vth_samp = 1;
-      config.vth_samples = vth_samp;
+      radius_samp = 1;
+      config.radius_samples = radius_samp;
     }
  
     vsamples_[0] = vx_samp;
-    vsamples_[1] = vy_samp;
-    vsamples_[2] = vth_samp;
+    //vsamples_[1] = vy_samp;
+    vsamples_[2] = radius_samp;
  
     penalize_negative_x_ = config.penalize_negative_x;
   }
 
-  AckermannPlanner::AckermannPlanner(std::string name, costmap_2d::Costmap2DROS* costmap_ros) : costmap_ros_(NULL), world_model_(NULL), dsrv_(ros::NodeHandle("~/" + name)), setup_(false), penalize_negative_x_(true) {
+  AckermannPlanner::AckermannPlanner(std::string name, 
+      costmap_2d::Costmap2DROS* costmap_ros) : 
+        costmap_ros_(NULL), world_model_(NULL), 
+        dsrv_(ros::NodeHandle("~/" + name)), 
+        setup_(false), 
+        penalize_negative_x_(true) {
     costmap_ros_ = costmap_ros;
     costmap_ros_->getCostmapCopy(costmap_);
 
-    map_ = base_local_planner::MapGrid(costmap_.getSizeInCellsX(), costmap_.getSizeInCellsY(), 
-        costmap_.getResolution(), costmap_.getOriginX(), costmap_.getOriginY());
-    front_map_ = base_local_planner::MapGrid(costmap_.getSizeInCellsX(), costmap_.getSizeInCellsY(), 
-        costmap_.getResolution(), costmap_.getOriginX(), costmap_.getOriginY());
+    map_ = base_local_planner::MapGrid(costmap_.getSizeInCellsX(),
+        costmap_.getSizeInCellsY(), costmap_.getResolution(), 
+        costmap_.getOriginX(), costmap_.getOriginY());
+
+    front_map_ = base_local_planner::MapGrid(costmap_.getSizeInCellsX(),
+        costmap_.getSizeInCellsY(), costmap_.getResolution(), 
+        costmap_.getOriginX(), costmap_.getOriginY());
+
     ros::NodeHandle pn("~/" + name);
 
-    double acc_lim_x, acc_lim_y, acc_lim_th;
+    double acc_lim_x;
     pn.param("acc_lim_x", acc_lim_x, 2.5);
-    pn.param("acc_lim_y", acc_lim_y, 2.5);
-    pn.param("acc_lim_th", acc_lim_th, 3.2);
 
     //Assuming this planner is being run within the navigation stack, we can
     //just do an upward search for the frequency at which its being run. This
@@ -144,8 +136,6 @@ namespace ackermann_local_planner {
     ROS_INFO("Sim period is set to %.2f", sim_period_);
 
     acc_lim_[0] = acc_lim_x;
-    acc_lim_[1] = acc_lim_y;
-    acc_lim_[2] = acc_lim_th;
 
     dynamic_reconfigure::Server<AckermannPlannerConfig>::CallbackType cb = boost::bind(&AckermannPlanner::reconfigureCB, this, _1, _2);
     dsrv_.setCallback(cb);
@@ -180,8 +170,8 @@ namespace ackermann_local_planner {
   Eigen::Vector3f AckermannPlanner::computeNewPositions(const Eigen::Vector3f& pos, 
       const Eigen::Vector3f& vel, double dt){
     Eigen::Vector3f new_pos = Eigen::Vector3f::Zero();
-    new_pos[0] = pos[0] + (vel[0] * cos(pos[2]) + vel[1] * cos(M_PI_2 + pos[2])) * dt;
-    new_pos[1] = pos[1] + (vel[0] * sin(pos[2]) + vel[1] * sin(M_PI_2 + pos[2])) * dt;
+    new_pos[0] = pos[0] + (vel[0] * cos(pos[2])) * dt;
+    new_pos[1] = pos[1] + (vel[0] * sin(pos[2])) * dt;
     new_pos[2] = pos[2] + vel[2] * dt;
     return new_pos;
   }
@@ -216,12 +206,6 @@ namespace ackermann_local_planner {
     if(forward_neg_only_ && vel[0] > 0.0)
       return true;
 
-    if(strafe_pos_only_ && vel[1] < 0.0)
-      return true;
-
-    if(strafe_neg_only_ && vel[1] > 0.0)
-      return true;
-
     if(rot_pos_only_ && vel[2] < 0.0)
       return true;
 
@@ -235,7 +219,8 @@ namespace ackermann_local_planner {
     tf::Stamped<tf::Pose> robot_pose_tf;
     geometry_msgs::PoseStamped robot_pose;
 
-    //compute the distance between the robot and the last point on the global_plan
+    //compute the distance between the robot and the last point on the
+    // global_plan
     costmap_ros_->getRobotPose(robot_pose_tf);
     tf::poseStampedTFToMsg(robot_pose_tf, robot_pose);
 
@@ -246,23 +231,18 @@ namespace ackermann_local_planner {
       two_point_scoring = false;
 
     //compute the feasible velocity space based on the rate at which we run
-    Eigen::Vector3f max_vel = Eigen::Vector3f::Zero();
-    max_vel[0] = std::min(max_vel_x_, vel[0] + acc_lim_[0] * sim_period_);
-    max_vel[1] = std::min(max_vel_y_, vel[1] + acc_lim_[1] * sim_period_);
-    max_vel[2] = std::min(max_vel_th_, vel[2] + acc_lim_[2] * sim_period_);
+    double max_vel;
+    max_vel = std::min(max_vel_x_, vel[0] + acc_lim_[0] * sim_period_);
 
-    Eigen::Vector3f min_vel = Eigen::Vector3f::Zero();
-    min_vel[0] = std::max(min_vel_x_, vel[0] - acc_lim_[0] * sim_period_);
-    min_vel[1] = std::max(min_vel_y_, vel[1] - acc_lim_[1] * sim_period_);
-    min_vel[2] = std::max(min_vel_th_, vel[2] - acc_lim_[2] * sim_period_);
+    double min_vel;
+    min_vel = std::max(min_vel_x_, vel[0] - acc_lim_[0] * sim_period_);
 
-    Eigen::Vector3f dv = Eigen::Vector3f::Zero();
+    double dv;
     //we want to sample the velocity space regularly
-    for(unsigned int i = 0; i < 3; ++i){
-      dv[i] = (max_vel[i] - min_vel[i]) / (std::max(1.0, double(vsamples_[i]) - 1));
-    }
+    dv = (max_vel - min_vel) / (std::max(1.0, double(vsamples_[0]) - 1));
 
-    //keep track of the best trajectory seen so far... we'll re-use two memeber vars for efficiency
+    //keep track of the best trajectory seen so far... we'll re-use two 
+    // memeber vars for efficiency
     base_local_planner::Trajectory* best_traj = &traj_one_;
     best_traj->cost_ = -1.0;
 
@@ -271,19 +251,17 @@ namespace ackermann_local_planner {
 
     Eigen::Vector3f vel_samp = Eigen::Vector3f::Zero();
 
-    //ROS_ERROR("x(%.2f, %.2f), y(%.2f, %.2f), th(%.2f, %.2f)", min_vel[0], max_vel[0], min_vel[1], max_vel[1], min_vel[2], max_vel[2]);
-    //ROS_ERROR("x(%.2f, %.2f), y(%.2f, %.2f), th(%.2f, %.2f)", min_vel_x_, max_vel_x_, min_vel_y_, max_vel_y_, min_vel_th_, max_vel_th_);
-    //ROS_ERROR("dv %.2f %.2f %.2f", dv[0], dv[1], dv[2]);
-
-    for(VelocityIterator x_it(min_vel[0], max_vel[0], dv[0]); !x_it.isFinished(); x_it++){
+    for(VelocityIterator x_it(min_vel, max_vel, dv); !x_it.isFinished(); x_it++){
       vel_samp[0] = x_it.getVelocity();
-      for(VelocityIterator y_it(min_vel[1], max_vel[1], dv[1]); !y_it.isFinished(); y_it++){
-        vel_samp[1] = y_it.getVelocity();
-        for(VelocityIterator th_it(min_vel[2], max_vel[2], dv[2]); !th_it.isFinished(); th_it++){
-          vel_samp[2] = th_it.getVelocity();
-          generateTrajectory(pos, vel_samp, *comp_traj, two_point_scoring);
-          selectBestTrajectory(best_traj, comp_traj);
-        }
+      vel_samp[1] = 0;
+      // compute min and max radial velocity based on minimum turning radius 
+      // and speed
+      double max_theta = vel_samp[0] / min_radius_; // theta = d / r
+      double dt = (max_theta*2) / (std::max(1.0, double(vsamples_[2]) - 1));
+      for(VelocityIterator th_it(-max_theta, max_theta, dt); !th_it.isFinished(); th_it++){
+        vel_samp[2] = th_it.getVelocity();
+        generateTrajectory(pos, vel_samp, *comp_traj, two_point_scoring);
+        selectBestTrajectory(best_traj, comp_traj);
       }
     }
 
@@ -358,49 +336,6 @@ namespace ackermann_local_planner {
       forward_neg_ = false;
       forward_pos_ = true;
     }
-
-    //we'll only set flags for strafing and rotating when we're not moving forward at all
-    if(fabs(t->xv_) <= min_vel_trans_){
-      //check negative strafe
-      if(t->yv_ < 0){
-        if(strafing_pos_){
-          strafe_neg_only_ = true;
-          flag_set = true;
-        }
-        strafing_pos_ = false;
-        strafing_neg_ = true;
-      }
-
-      //check positive strafe
-      if(t->yv_ > 0){
-        if(strafing_neg_){
-          strafe_pos_only_ = true;
-          flag_set = true;
-        }
-        strafing_neg_ = false;
-        strafing_pos_ = true;
-      }
-
-      //check negative rotation
-      if(t->thetav_ < 0){
-        if(rotating_pos_){
-          rot_neg_only_ = true;
-          flag_set = true;
-        }
-        rotating_pos_ = false;
-        rotating_neg_ = true;
-      }
-
-      //check positive rotation
-      if(t->thetav_ > 0){
-        if(rotating_neg_){
-          rot_pos_only_ = true;
-          flag_set = true;
-        }
-        rotating_neg_ = false;
-        rotating_pos_ = true;
-      }
-    }
     return flag_set;
   }
 
@@ -430,16 +365,7 @@ namespace ackermann_local_planner {
     //ROS_ERROR("%.2f, %.2f, %.2f - %.2f %.2f", vel[0], vel[1], vel[2], sim_time_, sim_granularity_);
     double impossible_cost = map_.map_.size();
 
-    double vmag = sqrt(vel[0] * vel[0] + vel[1] * vel[1]);
-    double eps = 1e-4;
-
-    //make sure that the robot is at least moving with one of the required velocities
-    if((vmag + eps < min_vel_trans_ && fabs(vel[2]) + eps < min_rot_vel_) ||
-        vmag - eps > max_vel_trans_ ||
-        oscillationCheck(vel)){
-      traj.cost_ = -1.0;
-      return;
-    }
+    double vmag = vel[0];
 
     //compute the number of steps we must take along this trajectory to be "safe"
     int num_steps = ceil(std::max((vmag * sim_time_) / sim_granularity_, fabs(vel[2]) / sim_granularity_));
@@ -502,7 +428,7 @@ namespace ackermann_local_planner {
       double scale = 1.0;
       if(vmag > scaling_speed_){
         //scale up to the max scaling factor linearly... this could be changed later
-        double ratio = (vmag - scaling_speed_) / (max_vel_trans_ - scaling_speed_);
+        double ratio = (vmag - scaling_speed_) / (max_vel_x_ - scaling_speed_);
         scale = max_scaling_factor_ * ratio + 1.0;
       }
 
@@ -513,23 +439,6 @@ namespace ackermann_local_planner {
       if(footprint_cost < 0){
         traj.cost_ = -1.0;
         return;
-
-        /* TODO: I'm not convinced this code is working properly
-        //we want to compute the max allowable speeds to be able to stop
-        //to be safe... we'll make sure we can stop some time before we actually hit
-        Eigen::Vector3f max_vel = getMaxSpeedToStopInTime(time - stop_time_buffer_);
-
-        //check if we can stop in time
-        if(abs_vel[0] < max_vel[0] && abs_vel[1] < max_vel[1] && abs_vel[2] < max_vel[2]){
-          //if we can, then we'll just break out of the loop here.. no point in checking future points
-          break;
-        }
-        else{
-          //if we can't... then this trajectory is invalid
-          traj.cost_ = -1.0;
-          return;
-        }
-        */
       }
 
       //compute the costs for this point on the trajectory
