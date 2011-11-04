@@ -1,7 +1,7 @@
 <library path="lib/libackermann_local_planner">
   <class name="ackermann_local_planner/AckermannPlannerROS" type="ackermann_local_planner::AckermannPlannerROS" base_class_type="nav_core::BaseLocalPlanner">
     <description>
-      A implementation of a local planner using either a DWA or Trajectory Rollout approach based on configuration parameters.
+      A implementation of a local planner for Ackermann bases.
     </description>
   </class>
 </library>

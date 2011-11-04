@@ -1,20 +1,26 @@
+/**
+\mainpage
+\htmlinclude manifest.html
 
-/** \mainpage
+\b ackermann_local_planner is ... 
 
-@htmlinclude manifest.html
+<!-- 
+Provide an overview of your package.
+-->
 
-@section summary Summary
-This package provides an implementation of a local planner for a mobile robot.
-The planner uses either the Trajectory Rollout or Dynamic Window Approach to povide safe local naivagtion 
-commands to the base.
 
-@section usage Usage
-There are two main ways to use this package. The first is to create a TrajectoryPlanner object and manage it
-yourself. The second, and encouraged method, is to use a ROS wrapper (ackermann_local_planner::TrajectoryPlannerROS)
-that manages the underlying TrajectoryPlanner for you and adheres to the ROS nav_robot_actions::BaseLocalPlanner 
-interface.
+\section codeapi Code API
 
- - \ref ackermann_local_planner::TrajectoryPlannerROS : The ROS wrapper for the \ref ackermann_local_planner::TrajectoryPlanner
- - \ref ackermann_local_planner::TrajectoryPlanner : An implementation of the local planner
+<!--
+Provide links to specific auto-generated API documentation within your
+package that is of particular interest to a reader. Doxygen will
+document pretty much every part of your code, so do your best here to
+point the reader to the actual API.
+
+If your codebase is fairly large or has different sets of APIs, you
+should use the doxygen 'group' tag to keep these APIs together. For
+example, the roscpp documentation has 'libros' group.
+-->
+
 
 */
