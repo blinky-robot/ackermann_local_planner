@@ -231,15 +231,27 @@ namespace ackermann_local_planner {
       two_point_scoring = false;
 
     //compute the feasible velocity space based on the rate at which we run
-    double max_vel;
-    max_vel = std::min(max_vel_x_, vel[0] + acc_lim_[0] * sim_period_);
+    // absolute maximum velocity limits
+    double max_vel = std::min(max_vel_x_, vel[0] + acc_lim_[0] * sim_period_);
+    double min_vel = std::max(-max_vel_x_, vel[0] - acc_lim_[0] * sim_period_);
 
-    double min_vel;
-    min_vel = std::max(min_vel_x_, vel[0] - acc_lim_[0] * sim_period_);
+    // ensure minimum velocity is met
+    if( max_vel < 0 && max_vel > -min_vel_x_ ) {
+      max_vel = -min_vel_x_;
+    }
+    if( max_vel > 0 && max_vel < min_vel_x_ ) {
+      max_vel = min_vel_x_;
+    }
 
-    double dv;
+    if( min_vel > 0 && min_vel < min_vel_x_ ) {
+      min_vel = min_vel_x_;
+    }
+    if( min_vel < 0 && min_vel > -min_vel_x_ ) {
+      min_vel = -min_vel_x_;
+    }
+
     //we want to sample the velocity space regularly
-    dv = (max_vel - min_vel) / (std::max(1.0, double(vsamples_[0]) - 1));
+    double dv = (max_vel - min_vel) / (std::max(1.0, double(vsamples_[0]) - 1));
 
     //keep track of the best trajectory seen so far... we'll re-use two 
     // memeber vars for efficiency
@@ -251,8 +263,19 @@ namespace ackermann_local_planner {
 
     Eigen::Vector3f vel_samp = Eigen::Vector3f::Zero();
 
+    // try the trajectory with velocity 0
+    generateTrajectory(pos, vel_samp, *comp_traj, two_point_scoring);
+    selectBestTrajectory(best_traj, comp_traj);
+
+    // try trajectories with nonzero velocities
     for(VelocityIterator x_it(min_vel, max_vel, dv); !x_it.isFinished(); x_it++){
       vel_samp[0] = x_it.getVelocity();
+      // ensure that minimum velocity limit is met
+      if( vel_samp[0] > 0 && vel_samp[0] <  min_vel_x_ ) 
+        vel_samp[0] =  min_vel_x_;
+      if( vel_samp[0] < 0 && vel_samp[0] > -min_vel_x_ ) 
+        vel_samp[0] = -min_vel_x_;
+
       vel_samp[1] = 0;
       // compute min and max radial velocity based on minimum turning radius 
       // and speed
