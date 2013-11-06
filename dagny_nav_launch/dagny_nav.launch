@@ -1,0 +1,14 @@
+<launch>
+   <!-- Run AMCL -->
+   <include file="$(find dagny)/amcl_diff.launch" />
+
+   <!-- move_base node -->
+   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+      <rosparam file="$(find dagny)/dagny_nav.yaml" command="load"/>
+      <rosparam file="$(find dagny)/common_costmap.yaml" command="load" ns="global_costmap"/>
+      <rosparam file="$(find dagny)/common_costmap.yaml" command="load" ns="local_costmap"/>
+      <rosparam file="$(find dagny)/local_costmap.yaml" command="load"/>
+      <rosparam file="$(find dagny)/global_costmap.yaml" command="load"/>
+      <rosparam file="$(find dagny)/local_planner.yaml" command="load"/>
+   </node>
+</launch>
