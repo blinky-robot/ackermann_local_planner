@@ -7,5 +7,7 @@
 
       <param name="linearUpdate" value="0.25"/>
       <param name="angularUpdate" value="0.2"/>
+      <param name="maxUrange" value="5.0"/>
+      <param name="maxRange" value="5.6"/>
    </node>
 </launch>
