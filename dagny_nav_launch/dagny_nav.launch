@@ -5,6 +5,8 @@
    <!-- move_base node -->
    <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
       <rosparam file="$(find dagny_nav_launch)/dagny_nav.yaml" command="load"/>
+      <param name="SBPLLatticePlanner/primitive_filename"
+         value="$(find dagny_nav_launch)/dagny_1.mprim" />
       <rosparam file="$(find dagny_nav_launch)/local_planner.yaml" command="load"/>
 
       <rosparam file="$(find dagny_nav_launch)/common_costmap.yaml" command="load" ns="local_costmap"/>

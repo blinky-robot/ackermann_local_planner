@@ -1,12 +1,11 @@
 base_global_planner: SBPLLatticePlanner
 recovery_behaviors:  [{name: conservative_reset, type: clear_costmap_recovery/ClearCostmapRecovery}]
-planner_patience: 61.0
+planner_patience: 15.0
 clearing_rotation_allowed: false
 
-base_local_planner: ackermann_local_planner/AckermannPlannerROS
+#base_local_planner: ackermann_local_planner/AckermannPlannerROS
 controller_frequency: 10.0
 
 SBPLLatticePlanner:
-   primitive_filename: /home/hendrix/senior/ros/dagny/dagny.mprim
-   allocated_time: 60
+   allocated_time: 15
    initial_epsilon: 10.0
