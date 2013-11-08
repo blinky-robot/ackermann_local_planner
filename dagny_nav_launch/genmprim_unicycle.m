@@ -262,7 +262,7 @@ for angleind = 1:numberofangles
         end;
         
         plot(intermcells_m(:,1), intermcells_m(:,2));
-        axis([-0.3 0.3 -0.3 0.3]);
+        axis([-0.6 0.6 -0.6 0.6]);
         text(intermcells_m(numofsamples,1), intermcells_m(numofsamples,2), int2str(endpose_c(3)));
         hold on;
         
