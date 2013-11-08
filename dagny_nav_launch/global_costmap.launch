@@ -1,0 +1,6 @@
+<launch>
+   <node pkg="costmap_2d" type="costmap_2d_node" name="global_costmap" output="screen">
+      <rosparam file="$(find dagny_nav_launch)/common_costmap.yaml" command="load" ns="costmap"/>
+      <rosparam file="$(find dagny_nav_launch)/global_costmap.yaml" command="load" ns="costmap"/>
+   </node>
+</launch>
