@@ -10,7 +10,7 @@ def read_int(f):
     return int(f.readline().split()[1])
 
 def read_mprim(file):
-    primitives = []
+    primitives = {}
     with open(file) as f:
         resolution = float(f.readline().split()[1])
         angles = read_int(f)
@@ -18,6 +18,8 @@ def read_mprim(file):
         for i in range(total):
             id = read_int(f)
             startangle = read_int(f)
+            if not startangle in primitives:
+                primitives[startangle] = []
             endpose = tuple(int(a) for a in f.readline().split()[1:])
             cost = read_int(f)
             pose_cnt = read_int(f)
@@ -25,7 +27,7 @@ def read_mprim(file):
             for j in range(pose_cnt):
                 pose = tuple(float(a) for a in f.readline().split())
                 poses.append(pose)
-            primitives.append(MPrim((0, 0, startangle), endpose, poses))
+            primitives[startangle].append(MPrim((0, 0, startangle), endpose, poses))
     return primitives
 
 def write_mprim(file):
