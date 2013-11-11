@@ -25,7 +25,7 @@ def read_mprim(file):
             pose_cnt = read_int(f)
             poses = []
             for j in range(pose_cnt):
-                pose = tuple(float(a) for a in f.readline().split())
+                pose = tuple(float(a)/resolution for a in f.readline().split())
                 poses.append(pose)
             primitives[startangle].append(MPrim((0, 0, startangle), endpose, poses))
     return primitives
