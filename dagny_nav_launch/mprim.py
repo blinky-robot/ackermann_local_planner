@@ -60,18 +60,23 @@ totalnumberofprimitives: %d\n"""%(res, 16, sum([len(primitives[p]) for p in prim
         for i,p in enumerate(primitives[start]):
             out += "primID: %d\n"%(i)
             out += p.outformat(res)
-    print out
+    with open(file, "w") as f:
+        f.write(out)
 
 def main():
     import yaml
     import argparse
     parser = argparse.ArgumentParser("python mprim library test")
     parser.add_argument("file", help="Filename to read primitives from")
+    parser.add_argument("-o", "--out", help="Output file", default=None)
 
     args = parser.parse_args()
 
     primitives = read_mprim(args.file)
-    write_mprim("/tmp/foo.mprim", primitives, 0.1)
+    if args.out:
+        write_mprim(args.out, primitives, 0.1)
+    else:
+        print primitives
     pass
 
 if __name__ == '__main__':
