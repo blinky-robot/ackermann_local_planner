@@ -77,7 +77,6 @@ def main():
         write_mprim(args.out, primitives, 0.1)
     else:
         print primitives
-    pass
 
 if __name__ == '__main__':
     main()
