@@ -19,12 +19,17 @@ def main():
         default=4, type=int)
     parser.add_argument("-o", "--outfile", help="Output File",
         default="out")
+    parser.add_argument('-a', '--all', help="All angles", action="store_true",
+        default=False)
 
     args = parser.parse_args()
 
     primitives = mprim.read_mprim(args.file)
 
     space = {(0,0,0): 0}
+    if args.all:
+        for i in range(16):
+            space[(0, 0, i)] = 0
 
     min_x = 0
     max_x = 0
