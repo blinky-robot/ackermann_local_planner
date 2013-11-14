@@ -21,12 +21,14 @@ def main():
         default="out")
     parser.add_argument('-a', '--all', help="All angles", action="store_true",
         default=False)
+    parser.add_argument('-s', '--start', help="Start Angle", default=0,
+        type=int)
 
     args = parser.parse_args()
 
     primitives = mprim.read_mprim(args.file)
 
-    space = {(0,0,0): 0}
+    space = {(0,0,args.start): 0}
     if args.all:
         for i in range(16):
             space[(0, 0, i)] = 0

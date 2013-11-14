@@ -38,13 +38,11 @@ def expand_primitives(prim):
         prim[3].append(mirror_xy(p))
 
     # rotate and mirror primitives about the origin
-    for i in range(4):
-        # +4 mirror about Y
-        prim[i+4] = map(mirror_y, prim[i])
-        # +8 mirror about x=-y
-        prim[i+8] = map(mirror_x_y, prim[i])
-        # +12 mirror about X
-        prim[i+12] = map(mirror_x, prim[i])
+    prim[4] = map(mirror_xy, prim[0])
+    for i in [ 5, 6, 7, 8 ]:
+        prim[i] = map(mirror_y, prim[8-i])
+    for i in range(9,16):
+        prim[i] = map(mirror_x, prim[16 - i])
 
 def generate_mprim(prim):
     res = {}
