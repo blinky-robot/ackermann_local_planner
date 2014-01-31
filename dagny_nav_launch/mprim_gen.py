@@ -3,6 +3,10 @@
 import sys
 import mprim
 
+import math
+import numpy 
+from scipy.special import fresnel
+
 # mirror about the X axis
 def mirror_x(p):
     return (p[0], -p[1], -p[2])
@@ -55,6 +59,68 @@ def generate_mprim(prim):
             res[start_a].append(mprim.MPrim(start, end_b, poses))
     return res
 
+def generate_trajectories(min_radius):
+    reachable = {
+            (0, 0 ,0): ( (0, 0, 0), ),
+            (1, 0, 0): ( (1, 0, 0), ),
+            (2, 0, 0): ( (2, 0, 0), ),
+            (3, 0, 0): ( (3, 0, 0), ),
+            (4, 0, 0): ( (4, 0, 0), ),
+            (5, 0, 0): ( (5, 0, 0), ),
+            (6, 0, 0): ( (6, 0, 0), ),
+            (7, 0, 0): ( (7, 0, 0), ),
+            (8, 0, 0): ( (8, 0, 0), ),
+            (9, 0, 0): ( (9, 0, 0), ),
+            (10,0, 0): ( (10,0, 0), ),
+            }
+    print reachable
+    angles = 4.0
+    for t1 in numpy.arange(0.01, 10.0, 0.01):
+        for t2 in numpy.arange(t1 + 0.01, 10.0, 0.01):
+            #print "(%f, %f)" % ( t1, t2 )
+            w1_max = 1 / (t1 * min_radius)
+            # TODO: should be able to compute w1 and w2 for desired d-theta
+            #  or a range of d-theta values
+            for w1 in numpy.arange(0, w1_max, w1_max / 100):
+                w2 = w1 * t1 / (t2 - t1)
+                a1 = math.sqrt(w1 / math.pi)
+                s1, c1 = fresnel( t1 * a1 )
+                x1, y1 = c1 / a1, s1 / a1
+                o1 = w1 * t1 * t1 / 2
+
+                dt = t2 - t1
+                a2 = math.sqrt(w2 / dt)
+                s2, c2 = fresnel( (t2 - t1) * a2 )
+                x2, y2 = - c2 / a2, -s2 / a2
+                o2 = - w2 * dt * dt / 2
+
+                x2, y2 = x2 + x1, y2 + y1
+                o2 = o1 + o2
+                o2_pi = o2 * angles / math.pi
+                if round(x2, 2) == round(x2, 0) and \
+                   round(y2, 2) == round(y2, 0) and \
+                   round(o2_pi, 2) == round(o2_pi, 0):
+                    # index into our reachability array
+                    i = ( round(x2),round(y2),round(o2_pi)/angles )
+                    # final position and control values
+                    d = ( (x2, y2, o2_pi), (t1, t2, w1) )
+                    if not i in reachable:
+                        reachable[i] = d
+                    else:
+                        def err(p1, p2):
+                            # TODO: this doesn't weight distance and angle equally 
+                            return (p1[0] - p2[0]) * (p1[0] - p2[0]) + \
+                                   (p1[1] - p2[1]) * (p1[1] - p2[1]) + \
+                                   (p1[2] - p2[2]) * (p1[2] - p2[2]) 
+
+                        i1 = d[0]
+                        i2 = reachable[i][0]
+                        if err(i, i1) < err(i, i2):
+                            reachable[i] = d
+                            print "(%d, %d, %f)" % i
+    print reachable.keys()
+    print reachable
+
 def main():
     import argparse
     parser = argparse.ArgumentParser('Motion primitive generation')
@@ -71,6 +137,8 @@ def main():
         1: [ (2, 1, 0), (3, 2, 1), (4, 1, -1), (4, 4, 2), (6, 0, -2) ],
         2: [ (1, 1, 0), (2, 3, 1), (2, 5, 2) ]
         }
+
+    generate_trajectories(3)
 
     expand_primitives(primitives)
 
