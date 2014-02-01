@@ -62,10 +62,100 @@ def generate_mprim(prim):
 class Segment(object):
     """ A partial path segment, with the relevant interfaces """
     # Create with a given start pose and parameters
+    def __init__(self):
+        self._length = 0
+        self._end = (0, 0, 0, 0) # degenerate case: a point
 
     # Get the end pose (x, y, theta and angular velocity)
+    def get_end(self):
+        return self._end
+
+    # Get a pose length from this segment's starting point
+    #  this is used as the generator for final poses and
+    #  inside of get_poses()
+    def get_pose(self, length):
+        raise NotImplementedError()
 
     # Get N intermediate poses
+    def get_poses(self, n=None, resolution=None):
+        # determine n to achive the desired resolution
+        #  minimum resolution
+        assert(n is not None or resolution is not None)
+        if n is None:
+            n = self._length / resolution
+            n = math.ceil(n)
+        r = self._length / n
+        if resolution < r:
+            assert( self._length / resolution > n )
+            n = self._length / resolution
+            n = math.ceil(n)
+        for i in range(n):
+            yield self.get_pose(i * resolution)
+        # explicitly don't yield the end. It the user wants it, they
+        #  can call get_end()
+
+class Linear(Segment):
+    def __init__(self, start, length):
+        assert(start[3] == 0) # angular velocity of start must be 0
+        self._length = length
+        self._start = tuple(start)
+        self._end = self.get_pose(length)
+
+
+    def get_pose(self, length):
+        pose = (0, 0, self._start[2], 0 )
+        pose = self._start[0] + length * cos(self._start[2])
+        pose = self._start[1] + length * sin(self._start[2])
+
+class Arc(Segment):
+    def __init__(self, start, length):
+        assert(start[3] != 0)
+        self._length = length
+        self._start = tuple(start)
+        self._end = self.get_pose(length)
+
+    def get_pose(self, length):
+        angular_velocity = self._start[3]
+        velocity = 1
+        time = length
+        pose = ( 0, 0, 0, self._start[3] )
+        pose[2] = self._start[2] + angular_velocity * time
+        pose[0] = self._start[0] + sin( self._start[2] + \
+                                        time * angular_velocity ) \
+                                   / posengular_velocity
+        pose[1] = self._start[1] - cos( self._start[2] + \
+                                        time * angular_velocity ) \
+                                   / angular_velocity
+        return pose
+
+
+class Spiral(Segment):
+    def __init__(self, start, length, w):
+        self._start = tuple(start)
+        self._length = length
+        self._w = w
+        self._end = self.get_pose(length)
+
+    def get_pose(self, length):
+        time = length
+        pose = ( 0, 0, 0, 0 )
+        pose[3] = self._start[3] + self._w * time
+        pose[2] = self._start[2] + self._w * time * time / 2
+
+        S, C = fresnel(math.sqrt( self._w / math.pi ) * time)
+
+        pi_w = math.sqrt( math.pi / self._w )
+
+        t0 = self._start[2]
+
+        dx = pi_w * ( sin( t0 ) * C + cos( t0 ) * S )
+        dy = pi_w * ( cos( t0 ) * C + sin( t0 ) * S )
+        pose[0] = self._start[0] + dx
+        pose[1] = self._start[1] + dy
+
+        return pose
+
+
 
 def generate_trajectories(min_radius, num_angles):
     reachable = {
@@ -90,8 +180,8 @@ def generate_trajectories(min_radius, num_angles):
             dt = t2 - t1
             w1_max = 1 / (t1 * min_radius)
             w2_max = 1 / (dt * min_radius)
-            print "t1, t2: %f, %f" % ( t1, t2 )
-            print "w1, w2 max: %f, %f" % ( w1_max, w2_max )
+            #print "t1, t2: %f, %f" % ( t1, t2 )
+            #print "w1, w2 max: %f, %f" % ( w1_max, w2_max )
             # don't consider 0 angle change yet, when we aren't computing
             # s-curves
             for angle in range(1, num_angles):
@@ -100,19 +190,19 @@ def generate_trajectories(min_radius, num_angles):
                 w2 = -1 * w1 * t1 / ( dt )
 
                 if abs(w1) > w1_max:
-                    print "w1 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
-                            % ( w1, t1, t2, angle_rad )
+                    #print "w1 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
+                    #        % ( w1, t1, t2, angle_rad )
                     continue
                 if abs(w2) > w2_max:
-                    print "w2 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
-                            % ( w2, t1, t2, angle_rad )
+                    #print "w2 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
+                    #        % ( w2, t1, t2, angle_rad )
                     continue
 
-                print "t1: %f" % t1
-                print "t2: %f" % t2
-                print "w1: %f" % w1
-                print "w2: %f" % w2
-                print "theta: %f" % angle_rad
+                #print "t1: %f" % t1
+                #print "t2: %f" % t2
+                #print "w1: %f" % w1
+                #print "w2: %f" % w2
+                #print "theta: %f" % angle_rad
 
             # TODO: should be able to compute w1 and w2 for desired d-theta
             #  or a range of d-theta values
