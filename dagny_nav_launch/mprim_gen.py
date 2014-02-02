@@ -65,10 +65,27 @@ class Segment(object):
     def __init__(self):
         self._length = 0
         self._end = (0, 0, 0, 0) # degenerate case: a point
+        self._reference = None
 
     # Get the end pose (x, y, theta and angular velocity)
     def get_end(self):
+        assert(self._end)
         return self._end
+
+    def get_length(self):
+        return self._length
+
+    def get_score(self, reference):
+        if self._reference and reference == self._reference:
+            return self._score
+        else:
+            diff = ( reference[0] - self._end[0],
+                     reference[1] - self._end[1],
+                     reference[2] - self._end[2],
+                     reference[3] - self._end[3] )
+            self._score = diff[0] * diff[0] + diff[1] * diff[1] + \
+                          diff[2] * diff[2] + diff[3] * diff[3]
+            return self._score 
 
     # Get a pose length from this segment's starting point
     #  this is used as the generator for final poses and
@@ -94,53 +111,85 @@ class Segment(object):
         # explicitly don't yield the end. It the user wants it, they
         #  can call get_end()
 
+#class Compound(Segment):
+#    def __init__(self):
+#        self._segments = []
+#        self._start = (0, 0, 0, 0)
+#        self._end   = (0, 0, 0, 0)
+#        self._length = 0
+#
+#    def append(self, segment, *args):
+#        assert(issubclass(segment, Segment))
+#        segment = segment(self._end, *args)
+#        self._length += segment.get_length()
+
+
 class Linear(Segment):
     def __init__(self, start, length):
-        assert(start[3] == 0) # angular velocity of start must be 0
+        assert(round(start[3], 4) == 0) # angular velocity of start must be 0
         self._length = length
         self._start = tuple(start)
         self._end = self.get_pose(length)
-
+        assert(self._end)
 
     def get_pose(self, length):
-        pose = (0, 0, self._start[2], 0 )
-        pose = self._start[0] + length * cos(self._start[2])
-        pose = self._start[1] + length * sin(self._start[2])
+        x = self._start[0] + length * math.cos(self._start[2])
+        y = self._start[1] + length * math.sin(self._start[2])
+        return (x, y, self._start[2], 0)
+
+    def __repr__(self):
+        return "Linear(%s, %f)" % (repr(self._start), self._length)
+
+    def __str__(self):
+        return "Linear(%s, %f)->(%s)" % (repr(self._start), self._length,
+                                         repr(self._end))
 
 class Arc(Segment):
     def __init__(self, start, length):
-        assert(start[3] != 0)
+        assert(round(start[3], 4) != 0)
         self._length = length
         self._start = tuple(start)
         self._end = self.get_pose(length)
+        assert(self._end)
 
     def get_pose(self, length):
         angular_velocity = self._start[3]
         velocity = 1
         time = length
         pose = ( 0, 0, 0, self._start[3] )
-        pose[2] = self._start[2] + angular_velocity * time
-        pose[0] = self._start[0] + sin( self._start[2] + \
-                                        time * angular_velocity ) \
-                                   / posengular_velocity
-        pose[1] = self._start[1] - cos( self._start[2] + \
-                                        time * angular_velocity ) \
-                                   / angular_velocity
-        return pose
+        t = self._start[2] + angular_velocity * time
+        x = self._start[0] + math.sin( self._start[2] + \
+                                       time * angular_velocity ) \
+                             / angular_velocity
+
+        y = self._start[1] - math.cos( self._start[2] + \
+                                       time * angular_velocity ) \
+                             / angular_velocity
+        return (x, y, t, self._start[3])
+
+    def __repr__(self):
+        return "Arc(%s, %f)" % (repr(self._start), self._length)
+
+    def __str__(self):
+        return "Arc(%s, %f)->(%s)" % (repr(self._start), self._length,
+                                         repr(self._end))
 
 
 class Spiral(Segment):
     def __init__(self, start, length, w):
+        # TODO: handle w < 0
+        assert(w != 0) 
         self._start = tuple(start)
         self._length = length
         self._w = w
         self._end = self.get_pose(length)
+        assert(self._end)
 
     def get_pose(self, length):
         time = length
         pose = ( 0, 0, 0, 0 )
-        pose[3] = self._start[3] + self._w * time
-        pose[2] = self._start[2] + self._w * time * time / 2
+        w = self._start[3] + self._w * time
+        t = self._start[2] + self._w * time * time / 2
 
         S, C = fresnel(math.sqrt( self._w / math.pi ) * time)
 
@@ -148,102 +197,158 @@ class Spiral(Segment):
 
         t0 = self._start[2]
 
-        dx = pi_w * ( sin( t0 ) * C + cos( t0 ) * S )
-        dy = pi_w * ( cos( t0 ) * C + sin( t0 ) * S )
-        pose[0] = self._start[0] + dx
-        pose[1] = self._start[1] + dy
+        dx = pi_w * ( math.sin( t0 ) * C + math.cos( t0 ) * S )
+        dy = pi_w * ( math.cos( t0 ) * C + math.sin( t0 ) * S )
+        x = self._start[0] + dx
+        y = self._start[1] + dy
 
-        return pose
+        return (x, y, t, w)
 
+    def __repr__(self):
+        return "Spiral(%s, %f, %f)" % (repr(self._start), self._length, self._w)
+
+    def __str__(self):
+        return "Spiral(%s, %f, %f)->(%s)" % (repr(self._start), self._length,
+                                         self._w, repr(self._end))
 
 
 def generate_trajectories(min_radius, num_angles):
-    reachable = {
-            (0, 0 ,0): ( (0, 0, 0), ),
-            (1, 0, 0): ( (1, 0, 0), ),
-            (2, 0, 0): ( (2, 0, 0), ),
-            (3, 0, 0): ( (3, 0, 0), ),
-            (4, 0, 0): ( (4, 0, 0), ),
-            (5, 0, 0): ( (5, 0, 0), ),
-            (6, 0, 0): ( (6, 0, 0), ),
-            (7, 0, 0): ( (7, 0, 0), ),
-            (8, 0, 0): ( (8, 0, 0), ),
-            (9, 0, 0): ( (9, 0, 0), ),
-            (10,0, 0): ( (10,0, 0), ),
-            }
+    reachable = {}
     print reachable
+    precision = 4 # number of digits of precision to use
+
+    def round_point(p):
+        assert(p)
+        p2 = tuple( round(a, 4) for a in p )
+        p3 = tuple( round(a, 0) for a in p )
+        if p2 == p3:
+            return p2
+        else:
+            return None
+
+    def try_segment(segment):
+        p = round_point(segment.get_end())
+        if p:
+            if p in reachable:
+                score = segment.get_score(p)
+                old_score = reachable[p].get_score(p)
+                if score < old_score:
+                    return p
+            else:
+                return p
+        return None
+
+
+    max_dist = 10
+    start = (0, 0, 0, 0)
+    # Straight lines
+    for d in range(max_dist):
+        segment = Linear(start, d)
+        print "Trying", segment
+        p = try_segment(segment)
+        if p:
+            reachable[p] = segment
+
+    # Spiral, ...
+    for l1 in numpy.arange(0.1, 10.0, 0.1):
+        w1_max = 1 / (l1 * min_radius)
+        w1_step = w1_max / 20
+        for w1 in numpy.arange(w1_step, w1_max, w1_step):
+            s1 = Spiral(start, l1, w1)
+            print l1, w1
+
+            # Spiral, Spiral
+            for l2 in numpy.arange(0.1, 10.0, 0.1):
+                w2 = -1 * w1 * l1 / ( l2 )
+                s2 = Spiral(s1.get_end(), l2, -w2)
+                p = try_segment(s2)
+                if p:
+                    print p
+                    reachable[p] = (s1, s2)
+
+            # Spiral, Arc, Spiral
+            for l2 in numpy.arange(0.1, 10.0, 0.1):
+                s2 = Arc(s1.get_end(), l2)
+                for l3 in numpy.arange(0.1, 10.0, 0.1):
+                    w3 = -1 * w1 * l1 / ( l3 )
+                    s3 = Spiral(s2.get_end(), l3, -w3)
+                    p = try_segment(s3)
+                    if p:
+                        print p
+                        reachable[p] = (s1, s2, s3)
+
     # TODO: rewrite this as a string of Segment classes
     #  which can be either linear, easment or circular segments
-    for t1 in numpy.arange(0.01, 10.0, 0.01):
-        for t2 in numpy.arange(t1 + 0.01, 10.0, 0.01):
-            #print "(%f, %f)" % ( t1, t2 )
-            dt = t2 - t1
-            w1_max = 1 / (t1 * min_radius)
-            w2_max = 1 / (dt * min_radius)
-            #print "t1, t2: %f, %f" % ( t1, t2 )
-            #print "w1, w2 max: %f, %f" % ( w1_max, w2_max )
-            # don't consider 0 angle change yet, when we aren't computing
-            # s-curves
-            for angle in range(1, num_angles):
-                angle_rad = angle * (math.pi * 2.0) / num_angles
-                w1 = angle_rad / ( t1*t1 + 0.5*t1*t2 )
-                w2 = -1 * w1 * t1 / ( dt )
+    #for t1 in numpy.arange(0.01, 10.0, 0.01):
+    #    for t2 in numpy.arange(t1 + 0.01, 10.0, 0.01):
+    #        #print "(%f, %f)" % ( t1, t2 )
+    #        dt = t2 - t1
+    #        w1_max = 1 / (t1 * min_radius)
+    #        w2_max = 1 / (dt * min_radius)
+    #        #print "t1, t2: %f, %f" % ( t1, t2 )
+    #        #print "w1, w2 max: %f, %f" % ( w1_max, w2_max )
+    #        # don't consider 0 angle change yet, when we aren't computing
+    #        # s-curves
+    #        for angle in range(1, num_angles):
+    #            angle_rad = angle * (math.pi * 2.0) / num_angles
+    #            w1 = angle_rad / ( t1*t1 + 0.5*t1*t2 )
+    #            w2 = -1 * w1 * t1 / ( dt )
 
-                if abs(w1) > w1_max:
-                    #print "w1 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
-                    #        % ( w1, t1, t2, angle_rad )
-                    continue
-                if abs(w2) > w2_max:
-                    #print "w2 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
-                    #        % ( w2, t1, t2, angle_rad )
-                    continue
+    #            if abs(w1) > w1_max:
+    #                #print "w1 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
+    #                #        % ( w1, t1, t2, angle_rad )
+    #                continue
+    #            if abs(w2) > w2_max:
+    #                #print "w2 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
+    #                #        % ( w2, t1, t2, angle_rad )
+    #                continue
 
-                #print "t1: %f" % t1
-                #print "t2: %f" % t2
-                #print "w1: %f" % w1
-                #print "w2: %f" % w2
-                #print "theta: %f" % angle_rad
+    #            #print "t1: %f" % t1
+    #            #print "t2: %f" % t2
+    #            #print "w1: %f" % w1
+    #            #print "w2: %f" % w2
+    #            #print "theta: %f" % angle_rad
 
-            # TODO: should be able to compute w1 and w2 for desired d-theta
-            #  or a range of d-theta values
-            #for w1 in numpy.arange(0, w1_max, w1_max / 100):
-            #    w2 = w1 * t1 / (t2 - t1)
-                a1 = math.sqrt(w1 / math.pi)
-                s1, c1 = fresnel( t1 * a1 )
-                x1, y1 = c1 / a1, s1 / a1
-                o1 = w1 * t1 * t1 / 2
+    #        # TODO: should be able to compute w1 and w2 for desired d-theta
+    #        #  or a range of d-theta values
+    #        #for w1 in numpy.arange(0, w1_max, w1_max / 100):
+    #        #    w2 = w1 * t1 / (t2 - t1)
+    #            a1 = math.sqrt(w1 / math.pi)
+    #            s1, c1 = fresnel( t1 * a1 )
+    #            x1, y1 = c1 / a1, s1 / a1
+    #            o1 = w1 * t1 * t1 / 2
 
-                # this doesn't take into account the starting angle;
-                #  pretty sure that it's wrong
-                a2 = math.sqrt(abs(w2 / dt)) # FIXME: shouldn't need abs here
-                s2, c2 = fresnel( (t2 - t1) * a2 )
-                x2, y2 = - c2 / a2, -s2 / a2
-                o2 = - w2 * dt * dt / 2
+    #            # this doesn't take into account the starting angle;
+    #            #  pretty sure that it's wrong
+    #            a2 = math.sqrt(abs(w2 / dt)) # FIXME: shouldn't need abs here
+    #            s2, c2 = fresnel( (t2 - t1) * a2 )
+    #            x2, y2 = - c2 / a2, -s2 / a2
+    #            o2 = - w2 * dt * dt / 2
 
-                x2, y2 = x2 + x1, y2 + y1
-                o2 = o1 + o2
-                o2_pi = o2 * num_angles / ( math.pi * 2.0 ) 
-                if round(x2, 2) == round(x2, 0) and \
-                   round(y2, 2) == round(y2, 0) and \
-                   round(o2_pi, 2) == round(o2_pi, 0):
-                    # index into our reachability array
-                    i = ( round(x2),round(y2),round(o2_pi)/num_angles )
-                    # final position and control values
-                    d = ( (x2, y2, o2_pi), (t1, t2, w1) )
-                    if not i in reachable:
-                        reachable[i] = d
-                    else:
-                        def err(p1, p2):
-                            # TODO: this doesn't weight distance and angle equally 
-                            return (p1[0] - p2[0]) * (p1[0] - p2[0]) + \
-                                   (p1[1] - p2[1]) * (p1[1] - p2[1]) + \
-                                   (p1[2] - p2[2]) * (p1[2] - p2[2]) 
+    #            x2, y2 = x2 + x1, y2 + y1
+    #            o2 = o1 + o2
+    #            o2_pi = o2 * num_angles / ( math.pi * 2.0 ) 
+    #            if round(x2, 2) == round(x2, 0) and \
+    #               round(y2, 2) == round(y2, 0) and \
+    #               round(o2_pi, 2) == round(o2_pi, 0):
+    #                # index into our reachability array
+    #                i = ( round(x2),round(y2),round(o2_pi)/num_angles )
+    #                # final position and control values
+    #                d = ( (x2, y2, o2_pi), (t1, t2, w1) )
+    #                if not i in reachable:
+    #                    reachable[i] = d
+    #                else:
+    #                    def err(p1, p2):
+    #                        # TODO: this doesn't weight distance and angle equally 
+    #                        return (p1[0] - p2[0]) * (p1[0] - p2[0]) + \
+    #                               (p1[1] - p2[1]) * (p1[1] - p2[1]) + \
+    #                               (p1[2] - p2[2]) * (p1[2] - p2[2]) 
 
-                        i1 = d[0]
-                        i2 = reachable[i][0]
-                        if err(i, i1) < err(i, i2):
-                            reachable[i] = d
-                            print "(%d, %d, %f)" % i
+    #                    i1 = d[0]
+    #                    i2 = reachable[i][0]
+    #                    if err(i, i1) < err(i, i2):
+    #                        reachable[i] = d
+    #                        print "(%d, %d, %f)" % i
     print reachable.keys()
     return reachable
 
@@ -272,7 +377,8 @@ def main():
         2: [ (1, 1, 0), (2, 3, 1), (2, 5, 2) ]
         }
 
-    generate_trajectories(args.min_radius / args.resolution, args.num_angles)
+    print generate_trajectories(args.min_radius / args.resolution,
+                                args.num_angles)
 
     expand_primitives(primitives)
 
