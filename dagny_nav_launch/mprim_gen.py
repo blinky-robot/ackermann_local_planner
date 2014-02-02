@@ -111,21 +111,20 @@ class Segment(object):
         # explicitly don't yield the end. It the user wants it, they
         #  can call get_end()
 
-#class Compound(Segment):
-#    def __init__(self):
-#        self._segments = []
-#        self._start = (0, 0, 0, 0)
-#        self._end   = (0, 0, 0, 0)
-#        self._length = 0
-#
-#    def append(self, segment, *args):
-#        assert(issubclass(segment, Segment))
-#        segment = segment(self._end, *args)
-#        self._length += segment.get_length()
+class Compound(Segment):
+    def __init__(self, *segments):
+        Segment.__init__(self)
+        self._segments = segments
+        self._start = (0, 0, 0, 0)
+        self._end   = segments[-1].get_end()
+        self._length = sum( s.get_length() for s in segments )
 
+    def __repr__(self):
+        return "Compound(%s)" %( ", ".join(map(repr, self._segments)) )
 
 class Linear(Segment):
     def __init__(self, start, length):
+        Segment.__init__(self)
         assert(round(start[3], 4) == 0) # angular velocity of start must be 0
         self._length = length
         self._start = tuple(start)
@@ -146,6 +145,7 @@ class Linear(Segment):
 
 class Arc(Segment):
     def __init__(self, start, length):
+        Segment.__init__(self)
         assert(round(start[3], 4) != 0)
         self._length = length
         self._start = tuple(start)
@@ -158,12 +158,16 @@ class Arc(Segment):
         time = length
         pose = ( 0, 0, 0, self._start[3] )
         t = self._start[2] + angular_velocity * time
-        x = self._start[0] + math.sin( self._start[2] + \
-                                       time * angular_velocity ) \
+
+        # calculations for x and y here are incorrect
+        x = self._start[0] + ( math.sin( self._start[2] + \
+                                         (time * angular_velocity) ) - \
+                               math.sin( self._start[2] ) )\
                              / angular_velocity
 
-        y = self._start[1] - math.cos( self._start[2] + \
-                                       time * angular_velocity ) \
+        y = self._start[1] - ( math.cos( self._start[2] + \
+                                         (time * angular_velocity) ) - \
+                               math.cos( self._start[2]) )\
                              / angular_velocity
         return (x, y, t, self._start[3])
 
@@ -177,6 +181,7 @@ class Arc(Segment):
 
 class Spiral(Segment):
     def __init__(self, start, length, w):
+        Segment.__init__(self)
         # TODO: handle w < 0
         assert(w != 0) 
         self._start = tuple(start)
@@ -215,11 +220,11 @@ class Spiral(Segment):
 def generate_trajectories(min_radius, num_angles):
     reachable = {}
     print reachable
-    precision = 4 # number of digits of precision to use
+    precision = 1 # number of digits of precision to use
 
     def round_point(p):
         assert(p)
-        p2 = tuple( round(a, 4) for a in p )
+        p2 = tuple( round(a, precision) for a in p )
         p3 = tuple( round(a, 0) for a in p )
         if p2 == p3:
             return p2
@@ -258,24 +263,26 @@ def generate_trajectories(min_radius, num_angles):
             print l1, w1
 
             # Spiral, Spiral
-            for l2 in numpy.arange(0.1, 10.0, 0.1):
+            for l2 in numpy.arange(0.1, 10.0 - l1, 0.1):
                 w2 = -1 * w1 * l1 / ( l2 )
                 s2 = Spiral(s1.get_end(), l2, -w2)
                 p = try_segment(s2)
                 if p:
                     print p
-                    reachable[p] = (s1, s2)
+                    reachable[p] = Compound(s1, s2)
+                    print reachable[p]
 
             # Spiral, Arc, Spiral
-            for l2 in numpy.arange(0.1, 10.0, 0.1):
+            for l2 in numpy.arange(0.1, 10.0 - l1, 0.1):
                 s2 = Arc(s1.get_end(), l2)
-                for l3 in numpy.arange(0.1, 10.0, 0.1):
+                for l3 in numpy.arange(0.1, 10.0 - l1 - l2, 0.1):
                     w3 = -1 * w1 * l1 / ( l3 )
                     s3 = Spiral(s2.get_end(), l3, -w3)
                     p = try_segment(s3)
                     if p:
                         print p
-                        reachable[p] = (s1, s2, s3)
+                        reachable[p] = Compound(s1, s2, s3)
+                        print reachable[p]
 
     # TODO: rewrite this as a string of Segment classes
     #  which can be either linear, easment or circular segments
