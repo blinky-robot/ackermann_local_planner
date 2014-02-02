@@ -55,7 +55,6 @@ class Segment(object):
             assert( self._length / resolution > n )
             n = self._length / resolution
         n = int(round(n + 0.5))
-        print n
         for i in range(n):
             yield self.get_pose(i * resolution)
         # explicitly don't yield the end. It the user wants it, they
@@ -200,7 +199,6 @@ class Spiral(Segment):
         assert(dy.imag == 0)
         dx = dx.real
         dy = dy.real
-        print dx, dy
 
         x = self._start[0] + dx
         y = self._start[1] + dy
