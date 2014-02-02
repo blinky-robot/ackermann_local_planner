@@ -102,9 +102,9 @@ def generate_trajectories(min_radius, num_angles):
             reachable[p] = segment
 
     # Spiral, ...
-    for l1 in numpy.arange(0.1, max_dist, 0.1):
+    for l1 in numpy.arange(0.01, max_dist, 0.01):
         w1_max = 1 / (l1 * min_radius)
-        w1_step = w1_max / 20
+        w1_step = w1_max / 100
         for w1 in numpy.arange(w1_step, w1_max, w1_step):
             s1 = Spiral(start, l1, w1)
             print l1, w1
