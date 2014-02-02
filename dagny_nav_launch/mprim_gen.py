@@ -7,6 +7,8 @@ import math
 import numpy 
 from scipy.special import fresnel
 
+from pylab import *
+
 # mirror about the X axis
 def mirror_x(p):
     return (p[0], -p[1], -p[2])
@@ -100,12 +102,14 @@ class Segment(object):
         assert(n is not None or resolution is not None)
         if n is None:
             n = self._length / resolution
-            n = math.ceil(n)
+        if n == 0:
+            return
         r = self._length / n
         if resolution < r:
             assert( self._length / resolution > n )
             n = self._length / resolution
-            n = math.ceil(n)
+        n = int(round(n + 0.5))
+        print n
         for i in range(n):
             yield self.get_pose(i * resolution)
         # explicitly don't yield the end. It the user wants it, they
@@ -121,6 +125,18 @@ class Compound(Segment):
 
     def __repr__(self):
         return "Compound(%s)" %( ", ".join(map(repr, self._segments)) )
+    
+    def get_pose(self, length):
+        i = 0
+        base = 0
+        l = self._segments[i].get_length()
+        while length > l:
+            i += 1
+            base = l
+            l += self._segments[i].get_length()
+        pose = self._segments[i].get_pose(length - base)
+        return pose
+        
 
 class Linear(Segment):
     def __init__(self, start, length):
@@ -202,8 +218,8 @@ class Spiral(Segment):
 
         t0 = self._start[2]
 
-        dx = pi_w * ( math.sin( t0 ) * C + math.cos( t0 ) * S )
-        dy = pi_w * ( math.cos( t0 ) * C + math.sin( t0 ) * S )
+        dx = pi_w * ( math.cos( t0 ) * C + math.sin( t0 ) * S )
+        dy = pi_w * ( math.sin( t0 ) * C + math.cos( t0 ) * S )
         x = self._start[0] + dx
         y = self._start[1] + dy
 
@@ -222,6 +238,20 @@ def generate_trajectories(min_radius, num_angles):
     print reachable
     precision = 1 # number of digits of precision to use
 
+    # is a point on our planning lattice?
+    def is_lattice(p):
+        # x and y error to nearest point
+        e1 = abs(p[0] - round(p[0]))
+        e2 = abs(p[1] - round(p[1]))
+        # theta error to nearest angle
+        angle = p[2] * num_angles / (math.pi * 2)
+        e3 = abs(angle - round(angle))
+        if e1 < 0.01 and e2 < 0.01 and e3 < 0.01:
+            return (round(p[0]), round(p[1]), math.pi * 2 * angle / num_angles,
+                    0)
+        else:
+            return None
+
     def round_point(p):
         assert(p)
         p2 = tuple( round(a, precision) for a in p )
@@ -232,7 +262,7 @@ def generate_trajectories(min_radius, num_angles):
             return None
 
     def try_segment(segment):
-        p = round_point(segment.get_end())
+        p = is_lattice(segment.get_end())
         if p:
             if p in reachable:
                 score = segment.get_score(p)
@@ -255,7 +285,7 @@ def generate_trajectories(min_radius, num_angles):
             reachable[p] = segment
 
     # Spiral, ...
-    for l1 in numpy.arange(0.1, 10.0, 0.1):
+    for l1 in numpy.arange(0.1, max_dist, 0.1):
         w1_max = 1 / (l1 * min_radius)
         w1_step = w1_max / 20
         for w1 in numpy.arange(w1_step, w1_max, w1_step):
@@ -263,7 +293,7 @@ def generate_trajectories(min_radius, num_angles):
             print l1, w1
 
             # Spiral, Spiral
-            for l2 in numpy.arange(0.1, 10.0 - l1, 0.1):
+            for l2 in numpy.arange(0.1, max_dist - l1, 0.1):
                 w2 = -1 * w1 * l1 / ( l2 )
                 s2 = Spiral(s1.get_end(), l2, -w2)
                 p = try_segment(s2)
@@ -273,9 +303,9 @@ def generate_trajectories(min_radius, num_angles):
                     print reachable[p]
 
             # Spiral, Arc, Spiral
-            for l2 in numpy.arange(0.1, 10.0 - l1, 0.1):
+            for l2 in numpy.arange(0.1, max_dist - l1, 0.1):
                 s2 = Arc(s1.get_end(), l2)
-                for l3 in numpy.arange(0.1, 10.0 - l1 - l2, 0.1):
+                for l3 in numpy.arange(0.1, max_dist - l1 - l2, 0.1):
                     w3 = -1 * w1 * l1 / ( l3 )
                     s3 = Spiral(s2.get_end(), l3, -w3)
                     p = try_segment(s3)
@@ -384,8 +414,25 @@ def main():
         2: [ (1, 1, 0), (2, 3, 1), (2, 5, 2) ]
         }
 
-    print generate_trajectories(args.min_radius / args.resolution,
+    trajectories = generate_trajectories(args.min_radius / args.resolution,
                                 args.num_angles)
+
+    for p in trajectories:
+        print p
+        segment = trajectories[p]
+        print segment
+        X = []
+        Y = []
+        for point in segment.get_poses(resolution=0.02):
+            X.append(point[0])
+            Y.append(point[1])
+        point = segment.get_end()
+        X.append(point[0])
+        Y.append(point[1])
+
+        cla() # clear axes
+        plot(X, Y)
+        show()
 
     expand_primitives(primitives)
 
