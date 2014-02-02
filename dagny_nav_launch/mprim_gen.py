@@ -115,6 +115,16 @@ class Segment(object):
         # explicitly don't yield the end. It the user wants it, they
         #  can call get_end()
 
+    def plot(self, resolution):
+        X = []
+        Y = []
+        for pose in self.get_poses(resolution=resolution):
+            X.append(pose[0])
+            Y.append(pose[1])
+        X.append(self._end[0])
+        Y.append(self._end[1])
+        plot(X, Y)
+
 class Compound(Segment):
     def __init__(self, *segments):
         Segment.__init__(self)
@@ -132,10 +142,16 @@ class Compound(Segment):
         l = self._segments[i].get_length()
         while length > l:
             i += 1
+            if i >= len(self._segments):
+                return self._end
             base = l
             l += self._segments[i].get_length()
         pose = self._segments[i].get_pose(length - base)
         return pose
+
+    def plot(self, resolution):
+        for s in self._segments:
+            s.plot(resolution)
         
 
 class Linear(Segment):
@@ -300,7 +316,6 @@ def generate_trajectories(min_radius, num_angles):
                 if p:
                     print p
                     reachable[p] = Compound(s1, s2)
-                    print reachable[p]
 
             # Spiral, Arc, Spiral
             for l2 in numpy.arange(0.1, max_dist - l1, 0.1):
@@ -312,80 +327,32 @@ def generate_trajectories(min_radius, num_angles):
                     if p:
                         print p
                         reachable[p] = Compound(s1, s2, s3)
-                        print reachable[p]
 
     # TODO: rewrite this as a string of Segment classes
     #  which can be either linear, easment or circular segments
-    #for t1 in numpy.arange(0.01, 10.0, 0.01):
-    #    for t2 in numpy.arange(t1 + 0.01, 10.0, 0.01):
-    #        #print "(%f, %f)" % ( t1, t2 )
-    #        dt = t2 - t1
-    #        w1_max = 1 / (t1 * min_radius)
-    #        w2_max = 1 / (dt * min_radius)
-    #        #print "t1, t2: %f, %f" % ( t1, t2 )
-    #        #print "w1, w2 max: %f, %f" % ( w1_max, w2_max )
-    #        # don't consider 0 angle change yet, when we aren't computing
-    #        # s-curves
-    #        for angle in range(1, num_angles):
-    #            angle_rad = angle * (math.pi * 2.0) / num_angles
-    #            w1 = angle_rad / ( t1*t1 + 0.5*t1*t2 )
-    #            w2 = -1 * w1 * t1 / ( dt )
+    for l1 in numpy.arange(0.01, 10.0, 0.01):
+        for l2 in numpy.arange(0.01, 10.0, 0.01):
+            w1_max = 1 / (l1 * min_radius)
+            w2_max = 1 / (l2 * min_radius)
+            # don't consider 0 angle change yet, when we aren't computing
+            # s-curves
+            for angle in range(1, num_angles):
+                angle_rad = angle * (math.pi * 2.0) / num_angles
+                w1 = angle_rad / ( l1*l1 + 0.5*l1*l2 )
+                w2 = -1 * w1 * l1 / ( l2 )
 
-    #            if abs(w1) > w1_max:
-    #                #print "w1 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
-    #                #        % ( w1, t1, t2, angle_rad )
-    #                continue
-    #            if abs(w2) > w2_max:
-    #                #print "w2 = %f too big for (t1, t2, theta) = (%f, %f, %f)" \
-    #                #        % ( w2, t1, t2, angle_rad )
-    #                continue
+                if abs(w1) > w1_max:
+                    continue
+                if abs(w2) > w2_max:
+                    continue
 
-    #            #print "t1: %f" % t1
-    #            #print "t2: %f" % t2
-    #            #print "w1: %f" % w1
-    #            #print "w2: %f" % w2
-    #            #print "theta: %f" % angle_rad
+                s1 = Spiral((0, 0, 0, 0), l1, w1)
+                s2 = Spiral(s1.get_end(), l2, -w2)
+                p = try_segment(s2)
+                if p:
+                    print p
+                    reachable[p] = Compound(s1, s2)
 
-    #        # TODO: should be able to compute w1 and w2 for desired d-theta
-    #        #  or a range of d-theta values
-    #        #for w1 in numpy.arange(0, w1_max, w1_max / 100):
-    #        #    w2 = w1 * t1 / (t2 - t1)
-    #            a1 = math.sqrt(w1 / math.pi)
-    #            s1, c1 = fresnel( t1 * a1 )
-    #            x1, y1 = c1 / a1, s1 / a1
-    #            o1 = w1 * t1 * t1 / 2
-
-    #            # this doesn't take into account the starting angle;
-    #            #  pretty sure that it's wrong
-    #            a2 = math.sqrt(abs(w2 / dt)) # FIXME: shouldn't need abs here
-    #            s2, c2 = fresnel( (t2 - t1) * a2 )
-    #            x2, y2 = - c2 / a2, -s2 / a2
-    #            o2 = - w2 * dt * dt / 2
-
-    #            x2, y2 = x2 + x1, y2 + y1
-    #            o2 = o1 + o2
-    #            o2_pi = o2 * num_angles / ( math.pi * 2.0 ) 
-    #            if round(x2, 2) == round(x2, 0) and \
-    #               round(y2, 2) == round(y2, 0) and \
-    #               round(o2_pi, 2) == round(o2_pi, 0):
-    #                # index into our reachability array
-    #                i = ( round(x2),round(y2),round(o2_pi)/num_angles )
-    #                # final position and control values
-    #                d = ( (x2, y2, o2_pi), (t1, t2, w1) )
-    #                if not i in reachable:
-    #                    reachable[i] = d
-    #                else:
-    #                    def err(p1, p2):
-    #                        # TODO: this doesn't weight distance and angle equally 
-    #                        return (p1[0] - p2[0]) * (p1[0] - p2[0]) + \
-    #                               (p1[1] - p2[1]) * (p1[1] - p2[1]) + \
-    #                               (p1[2] - p2[2]) * (p1[2] - p2[2]) 
-
-    #                    i1 = d[0]
-    #                    i2 = reachable[i][0]
-    #                    if err(i, i1) < err(i, i2):
-    #                        reachable[i] = d
-    #                        print "(%d, %d, %f)" % i
     print reachable.keys()
     return reachable
 
@@ -421,18 +388,20 @@ def main():
         print p
         segment = trajectories[p]
         print segment
-        X = []
-        Y = []
-        for point in segment.get_poses(resolution=0.02):
-            X.append(point[0])
-            Y.append(point[1])
-        point = segment.get_end()
-        X.append(point[0])
-        Y.append(point[1])
 
         cla() # clear axes
-        plot(X, Y)
+        segment.plot(resolution=0.02)
+        axis('equal')
         show()
+
+    for p in trajectories:
+        print p
+        segment = trajectories[p]
+        print segment
+
+        segment.plot(resolution=0.02)
+    axis('equal')
+    show()
 
     expand_primitives(primitives)
 
