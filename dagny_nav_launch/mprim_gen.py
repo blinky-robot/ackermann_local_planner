@@ -93,6 +93,7 @@ def generate_trajectories(min_radius, num_angles):
         return None
 
     max_dist = 10
+    res = 0.05
     start = (0, 0, 0, 0)
     # Straight lines
     for d in range(max_dist):
@@ -101,8 +102,9 @@ def generate_trajectories(min_radius, num_angles):
         if p:
             reachable[p] = segment
 
+    # TODO: use a few threads for speed
     # Spiral, ...
-    for l1 in numpy.arange(0.01, max_dist, 0.01):
+    for l1 in numpy.arange(res, max_dist, res):
         w1_max = 1 / (l1 * min_radius)
         w1_step = w1_max / 100
         for w1 in numpy.arange(w1_step, w1_max, w1_step):
@@ -110,7 +112,7 @@ def generate_trajectories(min_radius, num_angles):
             print l1, w1
 
             # Spiral, Spiral
-            for l2 in numpy.arange(0.1, max_dist - l1, 0.1):
+            for l2 in numpy.arange(res, max_dist - l1, res):
                 w2 = -1 * w1 * l1 / ( l2 )
                 s2 = Spiral(s1.get_end(), l2, w2)
                 p = try_segment(s2)
@@ -119,12 +121,11 @@ def generate_trajectories(min_radius, num_angles):
                     reachable[p] = Compound(s1, s2)
 
             # Spiral, Arc, Spiral
-            for l2 in numpy.arange(0.01, max_dist - 2*l1, 0.01):
+            for l2 in numpy.arange(res, max_dist - 2*l1, res):
                 s2 = Arc(s1.get_end(), l2)
 
-                l3 = l1
-                w3 = -w1
-                s3 = Spiral(s2.get_end(), l3, w3)
+                # optimize by using matching lead-in and lead-our spirals
+                s3 = Spiral(s2.get_end(), l1, -w1)
                 p = try_segment(s3)
                 if p:
                     print p
@@ -136,6 +137,20 @@ def generate_trajectories(min_radius, num_angles):
                 #    if p:
                 #        print p
                 #        reachable[p] = Compound(s1, s2, s3)
+
+            # Spiral, Arc, Spiral(x2), Arc, Spiral (S-curve)
+            # length = 4*l1 + 2*l2 <= max_dist
+            #          l2 <= (max_dist / 2) - 2 * l1
+            for l2 in numpy.arange(res, max_dist/2.0 - 2*l1, res):
+                s2 = Arc(s1.get_end(), l2)
+                s3 = Spiral(s2.get_end(), 2*l1, -w1)
+                s4 = Arc(s3.get_end(), l2)
+                s5 = Spiral(s4.get_end(), l1, w1)
+                p = try_segment(s5)
+                if p:
+                    print p
+                    reachable[p] = Compound(s1, s2, s3, s4, s5)
+
 
     # TODO: rewrite this as a string of Segment classes
     #  which can be either linear, easment or circular segments
@@ -192,6 +207,7 @@ def main():
 
     trajectories = generate_trajectories(args.min_radius / args.resolution,
                                 args.num_angles)
+    print repr(trajectories)
 
     for p in trajectories:
         print p
