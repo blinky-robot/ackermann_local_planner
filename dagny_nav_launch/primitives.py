@@ -180,8 +180,6 @@ class Spiral(Segment):
         theta = theta0 + self._w * time * time / 2
 
         w = self._w
-        if w < 0:
-            time = -time
 
         f1 = omega0 / cmath.sqrt( math.pi * w )
         S1, C1 = fresnel( f1 )
@@ -199,6 +197,11 @@ class Spiral(Segment):
         assert(dy.imag == 0)
         dx = dx.real
         dy = dy.real
+
+        # not quite sure why... but this works
+        if w < 0:
+            dx = -dx
+            dy = -dy
 
         x = self._start[0] + dx
         y = self._start[1] + dy
@@ -220,27 +223,40 @@ if __name__ == '__main__':
         print segment
         segment.plot(resolution=0.02)
         axis('equal')
+
+    def test_show():
         show()
         cla()
     # lines
-    #test_plot(Linear(start, 5))
+    test_plot(Linear(start, 5))
+    test_plot(Spiral(start, 5,  0.1))
+    test_plot(Spiral(start, 5, -0.1))
+    test_show()
 
     arc_start = (0, 0, 0, 0.5)
-    #test_plot(Arc(arc_start, 5))
-
-    test_plot(Spiral(start, 5,  0.5))
-    test_plot(Spiral(start, 5, -0.5))
-
-    test_plot(Spiral(arc_start, 5, 0.5))
-    test_plot(Spiral(arc_start, 5, -0.5))
+    test_plot(Arc(arc_start, 5))
+    test_plot(Spiral(arc_start, 5, 0.1))
+    test_plot(Spiral(arc_start, 5, -0.1))
+    test_show()
 
     angle_start = (0, 0, math.pi / 4.0, 0)
 
-    test_plot(Spiral(angle_start, 5,  0.5))
-    test_plot(Spiral(angle_start, 5, -0.5))
+    test_plot(Linear(angle_start, 5))
+    test_plot(Spiral(angle_start, 5,  0.1))
+    test_plot(Spiral(angle_start, 5, -0.1))
+    test_show()
 
     angle_arc_start = (0, 0, math.pi / 4.0, 0.5)
 
-    test_plot(Spiral(angle_arc_start, 5,  0.5))
-    test_plot(Spiral(angle_arc_start, 5, -0.5))
+    test_plot(Arc(angle_arc_start, 5))
+    test_plot(Spiral(angle_arc_start, 5,  0.1))
+    test_plot(Spiral(angle_arc_start, 5, -0.1))
+    test_show()
+
+    angle_arc_start2 = (0, 0, math.pi / 4.0, -0.5)
+
+    test_plot(Arc(angle_arc_start2, 5))
+    test_plot(Spiral(angle_arc_start2, 5,  0.1))
+    test_plot(Spiral(angle_arc_start2, 5, -0.1))
+    test_show()
 
