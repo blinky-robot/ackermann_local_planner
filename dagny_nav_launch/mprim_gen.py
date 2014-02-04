@@ -5,6 +5,7 @@ import mprim
 
 import math
 import numpy 
+import scipy.optimize
 from primitives import *
 
 from pylab import *
@@ -104,78 +105,100 @@ def generate_trajectories(min_radius, num_angles):
 
     # TODO: use a few threads for speed
     # Spiral, ...
-    for l1 in numpy.arange(res, max_dist, res):
-        w1_max = 1 / (l1 * min_radius)
-        w1_step = w1_max / 100
-        for w1 in numpy.arange(w1_step, w1_max, w1_step):
-            s1 = Spiral(start, l1, w1)
-            print l1, w1
+    #for l1 in numpy.arange(res, max_dist, res):
+    #    w1_max = 1 / (l1 * min_radius)
+    #    w1_step = w1_max / 100
+    #    for w1 in numpy.arange(w1_step, w1_max, w1_step):
+    #        s1 = Spiral(start, l1, w1)
+    #        print l1, w1
 
-            # Spiral, Spiral
-            for l2 in numpy.arange(res, max_dist - l1, res):
-                w2 = -1 * w1 * l1 / ( l2 )
-                s2 = Spiral(s1.get_end(), l2, w2)
-                p = try_segment(s2)
-                if p:
-                    print p
-                    reachable[p] = Compound(s1, s2)
-
-            # Spiral, Arc, Spiral
-            for l2 in numpy.arange(res, max_dist - 2*l1, res):
-                s2 = Arc(s1.get_end(), l2)
-
-                # optimize by using matching lead-in and lead-our spirals
-                s3 = Spiral(s2.get_end(), l1, -w1)
-                p = try_segment(s3)
-                if p:
-                    print p
-                    reachable[p] = Compound(s1, s2, s3)
-                #for l3 in numpy.arange(0.1, max_dist - l1 - l2, 0.1):
-                #    w3 = -1 * w1 * l1 / ( l3 )
-                #    s3 = Spiral(s2.get_end(), l3, -w3)
-                #    p = try_segment(s3)
-                #    if p:
-                #        print p
-                #        reachable[p] = Compound(s1, s2, s3)
-
-            # Spiral, Arc, Spiral(x2), Arc, Spiral (S-curve)
-            # length = 4*l1 + 2*l2 <= max_dist
-            #          l2 <= (max_dist / 2) - 2 * l1
-            for l2 in numpy.arange(res, max_dist/2.0 - 2*l1, res):
-                s2 = Arc(s1.get_end(), l2)
-                s3 = Spiral(s2.get_end(), 2*l1, -w1)
-                s4 = Arc(s3.get_end(), l2)
-                s5 = Spiral(s4.get_end(), l1, w1)
-                p = try_segment(s5)
-                if p:
-                    print p
-                    reachable[p] = Compound(s1, s2, s3, s4, s5)
-
-
-    # TODO: rewrite this as a string of Segment classes
-    #  which can be either linear, easment or circular segments
-    #for l1 in numpy.arange(0.01, 10.0, 0.01):
-    #    for l2 in numpy.arange(0.01, 10.0, 0.01):
-    #        w1_max = 1 / (l1 * min_radius)
-    #        w2_max = 1 / (l2 * min_radius)
-    #        # don't consider 0 angle change yet, when we aren't computing
-    #        # s-curves
-    #        for angle in range(1, num_angles):
-    #            angle_rad = angle * (math.pi * 2.0) / num_angles
-    #            w1 = angle_rad / ( l1*l1 + 0.5*l1*l2 )
+    #        # Spiral, Spiral
+    #        for l2 in numpy.arange(res, max_dist - l1, res):
     #            w2 = -1 * w1 * l1 / ( l2 )
-
-    #            if abs(w1) > w1_max:
-    #                continue
-    #            if abs(w2) > w2_max:
-    #                continue
-
-    #            s1 = Spiral((0, 0, 0, 0), l1, w1)
-    #            s2 = Spiral(s1.get_end(), l2, -w2)
+    #            s2 = Spiral(s1.get_end(), l2, w2)
     #            p = try_segment(s2)
     #            if p:
     #                print p
     #                reachable[p] = Compound(s1, s2)
+
+    #        # Spiral, Arc, Spiral
+    #        for l2 in numpy.arange(res, max_dist - 2*l1, res):
+    #            s2 = Arc(s1.get_end(), l2)
+
+    #            # optimize by using matching lead-in and lead-our spirals
+    #            s3 = Spiral(s2.get_end(), l1, -w1)
+    #            p = try_segment(s3)
+    #            if p:
+    #                print p
+    #                reachable[p] = Compound(s1, s2, s3)
+
+    #        # Spiral, Arc, Spiral(x2), Arc, Spiral (S-curve)
+    #        # length = 4*l1 + 2*l2 <= max_dist
+    #        #          l2 <= (max_dist / 2) - 2 * l1
+    #        for l2 in numpy.arange(res, max_dist/2.0 - 2*l1, res):
+    #            s2 = Arc(s1.get_end(), l2)
+    #            s3 = Spiral(s2.get_end(), 2*l1, -w1)
+    #            s4 = Arc(s3.get_end(), l2)
+    #            s5 = Spiral(s4.get_end(), l1, w1)
+    #            p = try_segment(s5)
+    #            if p:
+    #                print p
+    #                reachable[p] = Compound(s1, s2, s3, s4, s5)
+
+    def score(p, target):
+        e1 = (p[0] - target[0])*(p[0] - target[0])
+        e2 = (p[1] - target[1])*(p[1] - target[1])
+        # theta error to nearest angle
+        angle = p[2] * num_angles / (math.pi * 2)
+        e3 = (angle - target[2])*(angle - target[2])
+        return (e1, e2, e3)
+
+    def sas(start, end):
+        def err(args):
+            s1 = Spiral(start, args[0], args[1])
+            s2 = Arc(s1.get_end(), args[2])
+            s3 = Spiral(s2.get_end(), args[0], -args[1])
+            s = score(s3.get_end(), end)
+            return s
+        return err
+
+    def scurve(start, end):
+        def err(args):
+            s1 = Spiral(start, args[0], args[1])
+            s2 = Arc(s1.get_end(), args[2])
+            s3 = Spiral(s2.get_end(), args[0]*2.0, -args[1])
+            s4 = Arc(s3.get_end(), args[2])
+            s5 = Spiral(s4.get_end(), args[0], args[1])
+            s = score(s5.get_end(), end)
+            return s
+        return err
+
+    primitives = {
+        0: [ (4, 1, 1), (5, 2, 2),
+             (4, 1, 0), (3, 1, 0) ],
+        1: [ (3, 2, 1), (4, 1, -1), (4, 4, 2), (6, 0, -2),
+             (3, 2, 0), (4, 1, 0),  (4, 4, 0), (6, 0, 0) ],
+        2: [ (2, 3, 1), (2, 5, 2),
+             (2, 3, 0), (2, 5, 0) ]
+        }
+
+    for start_angle in primitives:
+        start = (0, 0, start_angle, 0)
+        for end_pose in primitives[start_angle]:
+            end = (end_pose[0], end_pose[1], end_pose[2], 0)
+
+            # starting guess:
+            #           l1,  w1, l2
+            estimate = [0.5, 0.1, 0.5]
+            print "Solving for", start, end
+            if end[2] == start[2]:
+                # estimate with s-curve
+                args = scipy.optimize.fsolve(scurve(start, end), estimate)
+            else:
+                # estimate with arc
+                args = scipy.optimize.fsolve(sas(start, end), estimate)
+            print args
+
 
     print reachable.keys()
     return reachable

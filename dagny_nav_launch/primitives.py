@@ -193,8 +193,10 @@ class Spiral(Segment):
 
         dx = pi_w * ( math.cos( t0 ) * (C2 - C1) + math.sin( t0 ) * (S2 - S1) )
         dy = pi_w * ( math.sin( t0 ) * (C1 - C2) + math.cos( t0 ) * (S2 - S1) )
-        assert(dx.imag == 0)
-        assert(dy.imag == 0)
+        if dx.imag != 0:
+            print "WARNING: imaginary result for dx:", dx
+        if dy.imag != 0:
+            print "WARNING: imaginary result for dy:", dy
         dx = dx.real
         dy = dy.real
 
