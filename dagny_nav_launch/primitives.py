@@ -52,7 +52,9 @@ class Segment(object):
             return
         r = self._length / n
         if resolution < r:
-            assert( self._length / resolution > n )
+            if self._length / resolution > n:
+                print self._length, resolution, n
+                assert(False)
             n = self._length / resolution
         n = int(round(n + 0.5))
         for i in range(n):
@@ -123,7 +125,7 @@ class Linear(Segment):
 class Arc(Segment):
     def __init__(self, start, length):
         Segment.__init__(self)
-        assert(round(start[3], 4) != 0)
+        assert(start[3] != 0)
         self._length = length
         self._start = tuple(start)
         self._end = self.get_pose(length)

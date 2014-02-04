@@ -75,6 +75,8 @@ def generate_trajectories(min_radius, num_angles):
         # theta error to nearest angle
         angle = p[2] * num_angles / (math.pi * 2)
         e3 = abs(angle - round(angle))
+        if e1 < 0.01 and e2 < 0.01:
+            print p, angle, e3
         if e1 < 0.01 and e2 < 0.01 and e3 < 0.01:
             return (round(p[0]), round(p[1]),
                     math.pi * 2 * round(angle) / num_angles, p[3])
@@ -97,11 +99,11 @@ def generate_trajectories(min_radius, num_angles):
     res = 0.05
     start = (0, 0, 0, 0)
     # Straight lines
-    for d in range(max_dist):
-        segment = Linear(start, d)
-        p = try_segment(segment)
-        if p:
-            reachable[p] = segment
+    #for d in range(max_dist):
+    #    segment = Linear(start, d)
+    #    p = try_segment(segment)
+    #    if p:
+    #        reachable[p] = segment
 
     # TODO: use a few threads for speed
     # Spiral, ...
@@ -151,53 +153,169 @@ def generate_trajectories(min_radius, num_angles):
         # theta error to nearest angle
         angle = p[2] * num_angles / (math.pi * 2)
         e3 = (angle - target[2])*(angle - target[2])
-        return (e1, e2, e3)
+        return e1, e2, e3
+
+    def LSASL(l1, l2, radius, l3, l4):
+        w = 1 / (l2 * radius )
+        w_max = 1 / (l2 * min_radius)
+        w = min(w, w_max)
+        w = max(w, -w_max)
+        l1 = max(l1, 0)
+        l1 = min(l1, 1)
+        l2 = max(l2, 0.0001)
+        l3 = max(l3, 0)
+        l4 = max(l4, 0)
+        l4 = min(l4, 1)
+        s1 = Linear(start, l1)
+        s2 = Spiral(s1.get_end(), l2, w)
+        s3 = Arc(s2.get_end(), l3)
+        s4 = Spiral(s3.get_end(), l2, -w)
+        s5 = Linear(s4.get_end(), l4)
+        return Compound(s1, s2, s3, s4, s5)
+
+    def SAS(l1, radius, l2):
+        w = 1 / (l1 * radius )
+        w_max = 1 / (l1 * min_radius)
+        w = min(w, w_max)
+        w = max(w, -w_max)
+        l1 = max(l1, 0.0001)
+        l2 = max(l2, 0)
+        s1 = Spiral(start, l1, w)
+        s2 = Arc(s1.get_end(), l2)
+        s3 = Spiral(s2.get_end(), l1, -w)
+        return Compound(s1, s2, s3)
 
     def sas(start, end):
         def err(args):
-            s1 = Spiral(start, args[0], args[1])
-            s2 = Arc(s1.get_end(), args[2])
-            s3 = Spiral(s2.get_end(), args[0], -args[1])
-            s = score(s3.get_end(), end)
-            return s
+            return score(SAS(*args).get_end(), end)
         return err
+
+    def LS_Curve(l1, l2, radius, l3, l4):
+        w = 1 / (l2 * radius )
+        w_max = 1 / (l2 * min_radius)
+        w = min(w, w_max)
+        w = max(w, -w_max)
+        l1 = max(l1, 0)
+        l1 = min(l1, 1)
+        l2 = max(l2, 0.0001)
+        l3 = max(l3, 0)
+        l4 = max(l4, 0)
+        l4 = min(l4, 1)
+        s1 = Linear(start, l1)
+        s2 = Spiral(s1.get_end(), l2, w)
+        s3 = Arc(s2.get_end(), l3)
+        s4 = Spiral(s3.get_end(), l2*2.0, -w)
+        s5 = Arc(s4.get_end(), l3)
+        s6 = Spiral(s5.get_end(), l2, w)
+        s7 = Linear(s6.get_end(), l4)
+        return Compound(s1, s2, s3, s4, s5, s6, s7)
+
+    def S_Curve(l1, radius, l2):
+        w = 1 / (l1 * radius )
+        w_max = 1 / (l1 * min_radius)
+        w = min(w, w_max)
+        w = max(w, -w_max)
+        l1 = max(l1, 0.0001)
+        l2 = max(l2, 0)
+        s1 = Spiral(start, l1, w)
+        s2 = Arc(s1.get_end(), l2)
+        s3 = Spiral(s2.get_end(), l1*2.0, -w)
+        s4 = Arc(s3.get_end(), l2)
+        s5 = Spiral(s4.get_end(), l1, w)
+        return Compound(s1, s2, s3, s4, s5)
 
     def scurve(start, end):
         def err(args):
-            s1 = Spiral(start, args[0], args[1])
-            s2 = Arc(s1.get_end(), args[2])
-            s3 = Spiral(s2.get_end(), args[0]*2.0, -args[1])
-            s4 = Arc(s3.get_end(), args[2])
-            s5 = Spiral(s4.get_end(), args[0], args[1])
-            s = score(s5.get_end(), end)
-            return s
+            return score(S_Curve(*args).get_end(), end)
         return err
 
-    primitives = {
-        0: [ (4, 1, 1), (5, 2, 2),
-             (4, 1, 0), (3, 1, 0) ],
-        1: [ (3, 2, 1), (4, 1, -1), (4, 4, 2), (6, 0, -2),
-             (3, 2, 0), (4, 1, 0),  (4, 4, 0), (6, 0, 0) ],
-        2: [ (2, 3, 1), (2, 5, 2),
-             (2, 3, 0), (2, 5, 0) ]
-        }
+    def w_constraint(args):
+        w_max = 1 / (args[0] * min_radius)
+        if args[1] == 0:
+            return -1000
+        return w_max - abs(args[1])
+    #return args[0] > 0 and abs(args[1]) <= w_max and args[2] > 0
+    def radius_constraint(args):
+        return args[1] - min_radius
+
+    def l1_constraint(args):
+        return args[0] - 0.0001
+
+    def l2_constraint(args):
+        return args[2]
+
+    constraints = [radius_constraint, l1_constraint, l2_constraint]
+
+
+    #primitives = {
+    #    0: [ (4, 1, 1), (5, 1, 1), (6, 1, 1), (6, 2, 2),
+    #         (5, 1, 0), (8, 2, 0) ],
+    #    1: [ (3, 2, 1), (4, 1, -1), (4, 4, 2), (6, 0, -2),
+    #         (3, 2, 0), (4, 1, 0),  (4, 4, 0), (6, 0, 0) ],
+    #    2: [ (2, 3, 1), (2, 5, 2),
+    #         (2, 3, 0), (2, 5, 0) ]
+    #    }
+    primitives = {}
+    for start_angle in range(3):
+        primitives[start_angle] = []
+        for x in range(8):
+            for y in range(8):
+                for angle in range(-2, 3):
+                    primitives[start_angle].append((x, y, angle,))
 
     for start_angle in primitives:
-        start = (0, 0, start_angle, 0)
+        start = (0, 0, 2 * math.pi * start_angle / num_angles , 0)
         for end_pose in primitives[start_angle]:
-            end = (end_pose[0], end_pose[1], end_pose[2], 0)
+            end_angle = start_angle + end_pose[2]
+            end = (end_pose[0], end_pose[1], 2.0 * math.pi * end_angle / \
+                    num_angles, 0)
 
             # starting guess:
             #           l1,  w1, l2
-            estimate = [0.5, 0.1, 0.5]
+            l_est = math.sqrt(end[0]*end[0] + end[1]*end[1]) + 0.2
+            if end_pose[2] == 0:
+                radius_est = 0
+            elif end_pose[2] > 0:
+                radius_est = l_est / (2 * math.pi * end_pose[2] / num_angles )
+            else:
+                radius_est = -l_est / (2 * math.pi * end_pose[2] / num_angles )
             print "Solving for", start, end
             if end[2] == start[2]:
+                estimate = [l_est / 2.0, radius_est, l_est / 2.0]
                 # estimate with s-curve
                 args = scipy.optimize.fsolve(scurve(start, end), estimate)
+                #args = scipy.optimize.fmin_cobyla(scurve(start, end), estimate,
+                #        constraints, maxfun=100000)
+                #args, f, d = scipy.optimize.fmin_l_bfgs_b(scurve(start, end),
+                #        estimate, bounds=[ (0.0001, None), (min_radius, None),
+                #            (0, None) ], approx_grad=True)
+                segment = S_Curve(*args)
+                #reachable[end] = segment
+                p = try_segment(segment)
+                if p:
+                    reachable[p] = segment
+                    print "Found", start, p, "(Looking for", end, ")"
+                #else:
+                    #print "Failed to find a solution for", start, "->", end
+                    #print "Score", score(segment.get_end(), end)
             else:
+                estimate = [l_est / 4.0, radius_est, l_est / 4.0]
                 # estimate with arc
                 args = scipy.optimize.fsolve(sas(start, end), estimate)
-            print args
+                #args = scipy.optimize.fmin_cobyla(sas(start, end), estimate,
+                #        constraints, maxfun=100000)
+                #args, f, d = scipy.optimize.fmin_l_bfgs_b(sas(start, end),
+                #        estimate, bounds=[ (0.0001, None), (min_radius, None),
+                #            (0, None) ], approx_grad=True)
+                segment = SAS(*args)
+                #reachable[end] = segment
+                p = try_segment(segment)
+                if p:
+                    reachable[p] = segment
+                    print "Found", start, p, "(Looking for", end, ")"
+                #else:
+                    #print "Failed to find a solution for", start, "->", end
+                    #print "Score", score(segment.get_end(), end)
 
 
     print reachable.keys()
@@ -232,20 +350,20 @@ def main():
                                 args.num_angles)
     print repr(trajectories)
 
-    for p in trajectories:
-        print p
-        segment = trajectories[p]
-        print segment
+    #for p in trajectories:
+    #    #print p
+    #    segment = trajectories[p]
+    #    #print segment
 
-        cla() # clear axes
-        segment.plot(resolution=0.02)
-        axis('equal')
-        show()
+    #    cla() # clear axes
+    #    segment.plot(resolution=0.02)
+    #    axis('equal')
+    #    show()
 
     for p in trajectories:
-        print p
+        #print p
         segment = trajectories[p]
-        print segment
+        #print segment
 
         segment.plot(resolution=0.02)
     axis('equal')
