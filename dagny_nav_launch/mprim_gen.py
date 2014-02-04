@@ -275,47 +275,48 @@ def generate_trajectories(min_radius, num_angles):
             l_est = math.sqrt(end[0]*end[0] + end[1]*end[1]) + 0.2
             if end_pose[2] == 0:
                 radius_est = 0
-            elif end_pose[2] > 0:
-                radius_est = l_est / (2 * math.pi * end_pose[2] / num_angles )
             else:
-                radius_est = -l_est / (2 * math.pi * end_pose[2] / num_angles )
+                radius_est = l_est / (2 * math.pi * end_pose[2] / num_angles )
+
             print "Solving for", start, end
             if end[2] == start[2]:
-                estimate = [l_est / 2.0, radius_est, l_est / 2.0]
+                estimate = [l_est / 8.0, radius_est / 2.0, 3.0 * l_est / 8.0]
                 # estimate with s-curve
-                args = scipy.optimize.fsolve(scurve(start, end), estimate)
-                #args = scipy.optimize.fmin_cobyla(scurve(start, end), estimate,
-                #        constraints, maxfun=100000)
-                #args, f, d = scipy.optimize.fmin_l_bfgs_b(scurve(start, end),
-                #        estimate, bounds=[ (0.0001, None), (min_radius, None),
-                #            (0, None) ], approx_grad=True)
+                args = scipy.optimize.fsolve(scurve(start, end), estimate,
+                        maxfev=100000)
                 segment = S_Curve(*args)
-                #reachable[end] = segment
                 p = try_segment(segment)
                 if p:
                     reachable[p] = segment
                     print "Found", start, p, "(Looking for", end, ")"
-                #else:
-                    #print "Failed to find a solution for", start, "->", end
-                    #print "Score", score(segment.get_end(), end)
+                estimate = [l_est / 8.0, -radius_est / 2.0, 3.0 * l_est / 8.0]
+                # estimate with s-curve
+                args = scipy.optimize.fsolve(scurve(start, end), estimate,
+                        maxfev=100000)
+                segment = S_Curve(*args)
+                p = try_segment(segment)
+                if p:
+                    reachable[p] = segment
+                    print "Found", start, p, "(Looking for", end, ")"
             else:
-                estimate = [l_est / 4.0, radius_est, l_est / 4.0]
+                estimate = [l_est / 4.0, radius_est, 3.0 * l_est / 4.0]
                 # estimate with arc
-                args = scipy.optimize.fsolve(sas(start, end), estimate)
-                #args = scipy.optimize.fmin_cobyla(sas(start, end), estimate,
-                #        constraints, maxfun=100000)
-                #args, f, d = scipy.optimize.fmin_l_bfgs_b(sas(start, end),
-                #        estimate, bounds=[ (0.0001, None), (min_radius, None),
-                #            (0, None) ], approx_grad=True)
+                args = scipy.optimize.fsolve(sas(start, end), estimate,
+                        maxfev=100000)
                 segment = SAS(*args)
-                #reachable[end] = segment
                 p = try_segment(segment)
                 if p:
                     reachable[p] = segment
                     print "Found", start, p, "(Looking for", end, ")"
-                #else:
-                    #print "Failed to find a solution for", start, "->", end
-                    #print "Score", score(segment.get_end(), end)
+                estimate = [l_est / 4.0, -radius_est, 3.0 * l_est / 4.0]
+                # estimate with arc
+                args = scipy.optimize.fsolve(sas(start, end), estimate,
+                        maxfev=100000)
+                segment = SAS(*args)
+                p = try_segment(segment)
+                if p:
+                    reachable[p] = segment
+                    print "Found", start, p, "(Looking for", end, ")"
 
 
     print reachable.keys()
@@ -349,6 +350,7 @@ def main():
     trajectories = generate_trajectories(args.min_radius / args.resolution,
                                 args.num_angles)
     print repr(trajectories)
+    print len(trajectories)
 
     #for p in trajectories:
     #    #print p
