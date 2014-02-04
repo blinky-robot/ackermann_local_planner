@@ -179,7 +179,7 @@ class Spiral(Segment):
         theta0 = self._start[2]
 
         omega = omega0 + self._w * time
-        theta = theta0 + self._w * time * time / 2
+        theta = theta0 + self._w * time * time / 2 + omega0 * time
 
         w = self._w
 
@@ -228,20 +228,50 @@ if __name__ == '__main__':
         segment.plot(resolution=0.02)
         axis('equal')
 
+    def test_end(segment, end):
+        assert(len(end) == 4)
+        e = segment.get_end()
+        err = [0]*4 
+        assert(len(e) == 4)
+        for i in range(4):
+            err[i] = abs(end[i] - e[i])
+        if max(err) > 0.000001:
+            print "ERROR: endpoint for", segment, "(", segment.get_end(), ")", \
+                "does not match", end, "(", err, ")"
+        else:
+            print "Endpoint test passed ", err
+
     def test_show():
         show()
         cla()
     # lines
+
+    test_end(Linear(start, 5),
+             (5, 0, 0, 0))
+    test_end(Spiral(start, 5,  0.1),
+             (4.2732691420089255, 1.8620681128161767, 1.25, 0.5))
+    test_end(Spiral(start, 5, -0.1),
+             (4.2732691420089255, -1.8620681128161767, -1.25, -0.5))
+
     test_plot(Linear(start, 5))
     test_plot(Spiral(start, 5,  0.1))
     test_plot(Spiral(start, 5, -0.1))
     test_show()
 
     arc_start = (0, 0, 0, 0.5)
+
+    test_end(Arc(arc_start, 5),
+             (1.1969442882079129, 3.602287231093867, 2.5, 0.5))
+    test_end(Spiral(arc_start, 5, 0.1),
+             (-0.055657624721361917, 2.5445328635419475, 3.75, 1.0))
+    test_end(Spiral(arc_start, 5, -0.1),
+             (3.1145313202640916, 3.4681149738592167, 1.25, 0))
+
     test_plot(Arc(arc_start, 5))
     test_plot(Spiral(arc_start, 5, 0.1))
     test_plot(Spiral(arc_start, 5, -0.1))
     test_show()
+
 
     angle_start = (0, 0, math.pi / 4.0, 0)
 
