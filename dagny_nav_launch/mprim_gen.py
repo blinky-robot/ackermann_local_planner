@@ -153,19 +153,22 @@ def generate_trajectories(min_radius, num_angles):
         angle = p[2] * num_angles / (math.pi * 2)
         target_angle = target[2] * num_angles / (math.pi * 2)
         e3 = (angle - target_angle)*(angle - target_angle)
-        return e1, e2, e3
+        return e1, e2, e3, 0, 0
 
-    def LSASL(l1, l2, radius, l3, l4):
-        w = 1 / (2 * l2 * radius )
+    def LSASL(l1, l2, w, l3, l4):
+        l2 = max(l2, 0.0001)
+        l2 = min(l2, 20)
+        #w = 1 / (2 * l2 * radius )
         w_max = 1 / (2 * l2 * min_radius)
         w = min(w, w_max)
         w = max(w, -w_max)
         l1 = max(l1, 0)
         l1 = min(l1, 1)
-        l2 = max(l2, 0.0001)
         l3 = max(l3, 0)
         l4 = max(l4, 0)
         l4 = min(l4, 1)
+        if w == 0:
+            return Linear(start, l1 + l2 * 2 + l3 + l4)
         s1 = Linear(start, l1)
         s2 = Spiral(s1.get_end(), l2, w)
         s3 = Arc(s2.get_end(), l3)
@@ -189,20 +192,23 @@ def generate_trajectories(min_radius, num_angles):
 
     def sas(start, end):
         def err(args):
-            return score(SAS(*args).get_end(), end)
+            return score(LSASL(*args).get_end(), end)
         return err
 
-    def LS_Curve(l1, l2, radius, l3, l4):
-        w = 1 / (2 * l2 * radius )
+    def LS_Curve(l1, l2, w, l3, l4):
+        #w = 1 / (2 * l2 * radius )
+        l2 = max(l2, 0.0001)
+        l2 = min(l2, 20)
         w_max = 1 / (2 * l2 * min_radius)
         w = min(w, w_max)
         w = max(w, -w_max)
         l1 = max(l1, 0)
         l1 = min(l1, 1)
-        l2 = max(l2, 0.0001)
         l3 = max(l3, 0)
         l4 = max(l4, 0)
         l4 = min(l4, 1)
+        if w == 0:
+            return Linear(start, l1 + l2 * 4 + l3 * 2 + l4)
         s1 = Linear(start, l1)
         s2 = Spiral(s1.get_end(), l2, w)
         s3 = Arc(s2.get_end(), l3)
@@ -230,7 +236,7 @@ def generate_trajectories(min_radius, num_angles):
 
     def scurve(start, end):
         def err(args):
-            return score(S_Curve(*args).get_end(), end)
+            return score(LS_Curve(*args).get_end(), end)
         return err
 
     def w_constraint(args):
@@ -264,11 +270,11 @@ def generate_trajectories(min_radius, num_angles):
         primitives[start_angle] = []
         for x in range(11):
             for y in range(11):
-                for angle in [ -2, -1, 0, 1, 2 ]:
+                for angle in [ -2, -1, 1, 2 ]:
                     primitives[start_angle].append((x, y, angle,))
 
     max_iter = 100000
-    xtol = 0.000001
+    xtol = 0.00000001
     for start_angle in primitives:
         start = (0, 0, 2 * math.pi * start_angle / num_angles , 0)
         for end_pose in primitives[start_angle]:
@@ -288,41 +294,57 @@ def generate_trajectories(min_radius, num_angles):
 
             #print "Solving for", start, end
             if end[2] == start[2]:
-                estimate = [l_est / 8.0, w_est, 3.0 * l_est / 8.0]
+                #estimate = [l_est / 8.0, w_est, 3.0 * l_est / 8.0]
+                estimate = [0, l_est / 8.0, w_est, 3.0 * l_est / 8.0, 0]
                 # estimate with s-curve
                 args, info, ier, mesg = scipy.optimize.fsolve(
                         scurve(start, end), estimate, maxfev=max_iter,
                         full_output=True, xtol=xtol)
-                segment = S_Curve(*args)
+                #segment = S_Curve(*args)
+                segment = LS_Curve(*args)
                 if ier == 1:
+                    p = is_lattice(segment.get_end())
+                    #assert(p)
                     reachable[(start, end)] = segment
                     print "Found", start, end
-                estimate = [l_est / 8.0, w_est, 3.0 * l_est / 8.0]
+                #estimate = [l_est / 8.0, w_est, 3.0 * l_est / 8.0]
+                estimate = [0, l_est / 8.0, w_est, 3.0 * l_est / 8.0, 0]
                 # estimate with s-curve
                 args, info, ier, mesg = scipy.optimize.fsolve(
                         scurve(start, end), estimate, maxfev=max_iter,
                         full_output=True, xtol=xtol)
-                segment = S_Curve(*args)
+                #segment = S_Curve(*args)
+                segment = LS_Curve(*args)
                 if ier == 1:
+                    p = is_lattice(segment.get_end())
+                    #assert(p)
                     reachable[(start, end)] = segment
                     print "Found", start, end
             else:
-                estimate = [l_est / 4.0, w_est, 3.0 * l_est / 4.0]
+                #estimate = [l_est / 4.0, w_est / 2.0, 3.0 * l_est / 4.0]
+                estimate = [0, l_est / 4.0, w_est / 2.0, 3.0 * l_est / 4.0, 0]
                 # estimate with arc
                 args, info, ier, mesg = scipy.optimize.fsolve(
                         sas(start, end), estimate, maxfev=max_iter,
                         full_output=True, xtol=xtol)
-                segment = SAS(*args)
+                #segment = SAS(*args)
+                segment = LSASL(*args)
                 if ier == 1:
+                    p = is_lattice(segment.get_end())
+                    #assert(p)
                     reachable[(start, end)] = segment
                     print "Found", start, end
-                estimate = [l_est / 4.0, -w_est, 3.0 * l_est / 4.0]
+                #estimate = [l_est / 4.0, -w_est / 2.0, 3.0 * l_est / 4.0]
+                estimate = [0, l_est / 4.0, -w_est / 2.0, 3.0 * l_est / 4.0, 0]
                 # estimate with arc
                 args, info, ier, mesg = scipy.optimize.fsolve(
                         sas(start, end), estimate, maxfev=max_iter,
                         full_output=True, xtol=xtol)
-                segment = SAS(*args)
+                #segment = SAS(*args)
+                segment = LSASL(*args)
                 if ier == 1:
+                    p = is_lattice(segment.get_end())
+                    #assert(p)
                     reachable[(start, end)] = segment
                     print "Found", start, end
 
@@ -371,20 +393,21 @@ def main():
     #    axis('equal')
     #    show()
 
-    for i in range(20):
-        sample = {}
-        for p in trajectories:
-            end = p[1]
-            if end[0] == i and end[1] <= i:
-                sample[p] = trajectories[p]
-            elif end[0] < i and end[1] == i:
-                sample[p] = trajectories[p]
-        if len(sample) > 0:
-            for p in sample:
-                sample[p].plot(resolution=0.02)
-            axis('equal')
-            print i, len(sample)
-            show()
+    if len(trajectories) > 5:
+        for i in range(20):
+            sample = {}
+            for p in trajectories:
+                end = p[1]
+                if end[0] == i and end[1] <= i:
+                    sample[p] = trajectories[p]
+                elif end[0] < i and end[1] == i:
+                    sample[p] = trajectories[p]
+            if len(sample) > 0:
+                for p in sample:
+                    sample[p].plot(resolution=0.02)
+                axis('equal')
+                print i, len(sample)
+                show()
 
     for p in trajectories:
         #print p
