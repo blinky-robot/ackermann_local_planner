@@ -161,7 +161,6 @@ class Arc(Segment):
 class Spiral(Segment):
     def __init__(self, start, length, w):
         Segment.__init__(self)
-        # TODO: handle w < 0
         assert(w != 0) 
         self._start = tuple(start)
         self._length = length

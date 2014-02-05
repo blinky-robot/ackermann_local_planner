@@ -66,6 +66,7 @@ def generate_trajectories(min_radius, num_angles):
     reachable = {}
     print reachable
     precision = 1 # number of digits of precision to use
+    tolerance = 0.01 # tolerance for matching to the grid
 
     # is a point on our planning lattice?
     def is_lattice(p):
@@ -75,9 +76,7 @@ def generate_trajectories(min_radius, num_angles):
         # theta error to nearest angle
         angle = p[2] * num_angles / (math.pi * 2)
         e3 = abs(angle - round(angle))
-        if e1 < 0.01 and e2 < 0.01:
-            print p, angle, e3
-        if e1 < 0.01 and e2 < 0.01 and e3 < 0.01:
+        if e1 < tolerance and e2 < tolerance and e3 < tolerance:
             return (round(p[0]), round(p[1]),
                     math.pi * 2 * round(angle) / num_angles, p[3])
         else:
@@ -152,12 +151,13 @@ def generate_trajectories(min_radius, num_angles):
         e2 = (p[1] - target[1])*(p[1] - target[1])
         # theta error to nearest angle
         angle = p[2] * num_angles / (math.pi * 2)
-        e3 = (angle - target[2])*(angle - target[2])
+        target_angle = target[2] * num_angles / (math.pi * 2)
+        e3 = (angle - target_angle)*(angle - target_angle)
         return e1, e2, e3
 
     def LSASL(l1, l2, radius, l3, l4):
-        w = 1 / (l2 * radius )
-        w_max = 1 / (l2 * min_radius)
+        w = 1 / (2 * l2 * radius )
+        w_max = 1 / (2 * l2 * min_radius)
         w = min(w, w_max)
         w = max(w, -w_max)
         l1 = max(l1, 0)
@@ -173,13 +173,15 @@ def generate_trajectories(min_radius, num_angles):
         s5 = Linear(s4.get_end(), l4)
         return Compound(s1, s2, s3, s4, s5)
 
-    def SAS(l1, radius, l2):
-        w = 1 / (l1 * radius )
-        w_max = 1 / (l1 * min_radius)
+    def SAS(l1, w, l2):
+        #w = 1 / (2 * l1 * radius )
+        l1 = max(l1, 0.0001)
+        w_max = 1 / (2 * l1 * min_radius)
         w = min(w, w_max)
         w = max(w, -w_max)
-        l1 = max(l1, 0.0001)
         l2 = max(l2, 0)
+        if w == 0:
+            return Linear(start, l1 * 2 + l2)
         s1 = Spiral(start, l1, w)
         s2 = Arc(s1.get_end(), l2)
         s3 = Spiral(s2.get_end(), l1, -w)
@@ -191,8 +193,8 @@ def generate_trajectories(min_radius, num_angles):
         return err
 
     def LS_Curve(l1, l2, radius, l3, l4):
-        w = 1 / (l2 * radius )
-        w_max = 1 / (l2 * min_radius)
+        w = 1 / (2 * l2 * radius )
+        w_max = 1 / (2 * l2 * min_radius)
         w = min(w, w_max)
         w = max(w, -w_max)
         l1 = max(l1, 0)
@@ -210,13 +212,15 @@ def generate_trajectories(min_radius, num_angles):
         s7 = Linear(s6.get_end(), l4)
         return Compound(s1, s2, s3, s4, s5, s6, s7)
 
-    def S_Curve(l1, radius, l2):
-        w = 1 / (l1 * radius )
-        w_max = 1 / (l1 * min_radius)
+    def S_Curve(l1, w, l2):
+        #w = 1 / (2 * l1 * radius )
+        l1 = max(l1, 0.0001)
+        w_max = 1 / (2 * l1 * min_radius)
         w = min(w, w_max)
         w = max(w, -w_max)
-        l1 = max(l1, 0.0001)
         l2 = max(l2, 0)
+        if w == 0:
+            return Linear(start, l1 * 4 + l2 * 2)
         s1 = Spiral(start, l1, w)
         s2 = Arc(s1.get_end(), l2)
         s3 = Spiral(s2.get_end(), l1*2.0, -w)
@@ -258,11 +262,13 @@ def generate_trajectories(min_radius, num_angles):
     primitives = {}
     for start_angle in range(3):
         primitives[start_angle] = []
-        for x in range(8):
-            for y in range(8):
-                for angle in range(-2, 3):
+        for x in range(11):
+            for y in range(11):
+                for angle in [ -2, -1, 0, 1, 2 ]:
                     primitives[start_angle].append((x, y, angle,))
 
+    max_iter = 100000
+    xtol = 0.000001
     for start_angle in primitives:
         start = (0, 0, 2 * math.pi * start_angle / num_angles , 0)
         for end_pose in primitives[start_angle]:
@@ -275,51 +281,54 @@ def generate_trajectories(min_radius, num_angles):
             l_est = math.sqrt(end[0]*end[0] + end[1]*end[1]) + 0.2
             if end_pose[2] == 0:
                 radius_est = 0
+                w_est = 0
             else:
                 radius_est = l_est / (2 * math.pi * end_pose[2] / num_angles )
+                w_est = 1 / ( 2 * radius_est * l_est )
 
-            print "Solving for", start, end
+            #print "Solving for", start, end
             if end[2] == start[2]:
-                estimate = [l_est / 8.0, radius_est / 2.0, 3.0 * l_est / 8.0]
+                estimate = [l_est / 8.0, w_est, 3.0 * l_est / 8.0]
                 # estimate with s-curve
-                args = scipy.optimize.fsolve(scurve(start, end), estimate,
-                        maxfev=100000)
+                args, info, ier, mesg = scipy.optimize.fsolve(
+                        scurve(start, end), estimate, maxfev=max_iter,
+                        full_output=True, xtol=xtol)
                 segment = S_Curve(*args)
-                p = try_segment(segment)
-                if p:
-                    reachable[p] = segment
-                    print "Found", start, p, "(Looking for", end, ")"
-                estimate = [l_est / 8.0, -radius_est / 2.0, 3.0 * l_est / 8.0]
+                if ier == 1:
+                    reachable[(start, end)] = segment
+                    print "Found", start, end
+                estimate = [l_est / 8.0, w_est, 3.0 * l_est / 8.0]
                 # estimate with s-curve
-                args = scipy.optimize.fsolve(scurve(start, end), estimate,
-                        maxfev=100000)
+                args, info, ier, mesg = scipy.optimize.fsolve(
+                        scurve(start, end), estimate, maxfev=max_iter,
+                        full_output=True, xtol=xtol)
                 segment = S_Curve(*args)
-                p = try_segment(segment)
-                if p:
-                    reachable[p] = segment
-                    print "Found", start, p, "(Looking for", end, ")"
+                if ier == 1:
+                    reachable[(start, end)] = segment
+                    print "Found", start, end
             else:
-                estimate = [l_est / 4.0, radius_est, 3.0 * l_est / 4.0]
+                estimate = [l_est / 4.0, w_est, 3.0 * l_est / 4.0]
                 # estimate with arc
-                args = scipy.optimize.fsolve(sas(start, end), estimate,
-                        maxfev=100000)
+                args, info, ier, mesg = scipy.optimize.fsolve(
+                        sas(start, end), estimate, maxfev=max_iter,
+                        full_output=True, xtol=xtol)
                 segment = SAS(*args)
-                p = try_segment(segment)
-                if p:
-                    reachable[p] = segment
-                    print "Found", start, p, "(Looking for", end, ")"
-                estimate = [l_est / 4.0, -radius_est, 3.0 * l_est / 4.0]
+                if ier == 1:
+                    reachable[(start, end)] = segment
+                    print "Found", start, end
+                estimate = [l_est / 4.0, -w_est, 3.0 * l_est / 4.0]
                 # estimate with arc
-                args = scipy.optimize.fsolve(sas(start, end), estimate,
-                        maxfev=100000)
+                args, info, ier, mesg = scipy.optimize.fsolve(
+                        sas(start, end), estimate, maxfev=max_iter,
+                        full_output=True, xtol=xtol)
                 segment = SAS(*args)
-                p = try_segment(segment)
-                if p:
-                    reachable[p] = segment
-                    print "Found", start, p, "(Looking for", end, ")"
+                if ier == 1:
+                    reachable[(start, end)] = segment
+                    print "Found", start, end
 
 
     print reachable.keys()
+    print min_radius
     return reachable
 
 def main():
@@ -349,7 +358,7 @@ def main():
 
     trajectories = generate_trajectories(args.min_radius / args.resolution,
                                 args.num_angles)
-    print repr(trajectories)
+    #print repr(trajectories)
     print len(trajectories)
 
     #for p in trajectories:
@@ -361,6 +370,21 @@ def main():
     #    segment.plot(resolution=0.02)
     #    axis('equal')
     #    show()
+
+    for i in range(20):
+        sample = {}
+        for p in trajectories:
+            end = p[1]
+            if end[0] == i and end[1] <= i:
+                sample[p] = trajectories[p]
+            elif end[0] < i and end[1] == i:
+                sample[p] = trajectories[p]
+        if len(sample) > 0:
+            for p in sample:
+                sample[p].plot(resolution=0.02)
+            axis('equal')
+            print i, len(sample)
+            show()
 
     for p in trajectories:
         #print p
