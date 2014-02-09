@@ -15,18 +15,28 @@ class MPrim():
 %s"""%(str(self.start), str(self.end), "\n".join(self.poses))
 
     def __repr__(self):
-      return "[MPrim: start: %s, end: %s]"%(str(self.start), str(self.end))
+        return "[MPrim: start: %s, end: %s]"%(str(self.start), str(self.end))
 
     def outformat(self, res=0.1):
-      s = """startangle_c: %d
+        s = """startangle_c: %d
 endpose_c: %d %d %d
 additionalactioncostmult: %d
 intermediateposes: %d
 """%(self.start[2], self.end[0], self.end[1], self.end[2],
-    self.cost, len(self.poses))
-      for pose in self.poses:
-          s += "%0.4f %0.4f %0.4f\n"%(pose[0]*res, pose[1]*res, pose[2]*res)
-      return s
+     self.cost, len(self.poses))
+        for pose in self.poses:
+            s += "%0.4f %0.4f %0.4f\n"%(pose[0]*res, pose[1]*res, pose[2]*res)
+        return s
+
+    def transform(self, transform):
+        """ Return a NEW copy of this MPrim as transformed by transform """
+        start = transform(self.start)
+        end = transform(self.end)
+        cost = self.cost
+        poses = []
+        for pose in self.poses:
+            poses.append(transform(pose))
+        return MPrim(start, end, poses, cost)
 
 def read_int(f):
     return int(f.readline().split()[1])
