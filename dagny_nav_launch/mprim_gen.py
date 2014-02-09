@@ -150,6 +150,20 @@ def generate_trajectories(min_radius, num_angles):
         e3 = (angle - target_angle)*(angle - target_angle)
         return e1, e2, e3
 
+    def yt_score(p, target):
+        if p[0] > target[0]:
+            # penalize overshooting the goal
+            e1 = (p[0] - target[0])*(p[0] - target[0])*10
+        else:
+            # don't penalize undershooting the goal
+            e1 = 0
+        e2 = (p[1] - target[1])*(p[1] - target[1])
+        # theta error to nearest angle
+        angle = p[2] * num_angles / (math.pi * 2)
+        target_angle = target[2] * num_angles / (math.pi * 2)
+        e3 = (angle - target_angle)*(angle - target_angle)
+        return e1, e2, e3
+
     # is a point on our planning lattice?
     def is_lattice(p):
         # x and y error to nearest point
@@ -188,56 +202,56 @@ def generate_trajectories(min_radius, num_angles):
     res = 0.2
 
     # generate seed points for the optimizer
-    seeds = {}
-    for angle in range(3):
-        start_angle = angle * math.pi * 2 / num_angles
-        start = (0, 0, start_angle, 0)
+    #seeds = {}
+    #for angle in range(3):
+    #    start_angle = angle * math.pi * 2 / num_angles
+    #    start = (0, 0, start_angle, 0)
 
-        for l1 in numpy.arange(res, max_dist, res):
-            w1_max = 1 / (2 * l1 * min_radius)
-            w1_step = w1_max / 100
-            for w1 in numpy.arange(w1_step, w1_max, w1_step):
-                s1 = Spiral(start, l1, w1)
+    #    for l1 in numpy.arange(res, max_dist, res):
+    #        w1_max = 1 / (2 * l1 * min_radius)
+    #        w1_step = w1_max / 100
+    #        for w1 in numpy.arange(w1_step, w1_max, w1_step):
+    #            s1 = Spiral(start, l1, w1)
 
-                # Spiral, Arc, Spiral
-                for l2 in numpy.arange(res, max_dist - 2*l1, res):
-                    s2 = Arc(s1.get_end(), l2)
+    #            # Spiral, Arc, Spiral
+    #            for l2 in numpy.arange(res, max_dist - 2*l1, res):
+    #                s2 = Arc(s1.get_end(), l2)
 
-                    # optimize by using matching lead-in and lead-our spirals
-                    s3 = Spiral(s2.get_end(), l1, -w1)
-                    p = is_lattice(s3.get_end())
-                    if p:
-                        s = sum(score(s3.get_end(), p))
-                        i = (index(start), index(p))
-                        s4 = Compound(s1, s2, s3)
-                        if i in seeds:
-                            if s < seeds[i][0]:
-                                seeds[i] = (s, SAS, l1, w1, l2, s4)
-                        else:
-                            print i
-                            seeds[i] = (s, SAS, l1, w1, l2, s4)
+    #                # optimize by using matching lead-in and lead-our spirals
+    #                s3 = Spiral(s2.get_end(), l1, -w1)
+    #                p = is_lattice(s3.get_end())
+    #                if p:
+    #                    s = sum(score(s3.get_end(), p))
+    #                    i = (index(start), index(p))
+    #                    s4 = Compound(s1, s2, s3)
+    #                    if i in seeds:
+    #                        if s < seeds[i][0]:
+    #                            seeds[i] = (s, SAS, l1, w1, l2, s4)
+    #                    else:
+    #                        print i
+    #                        seeds[i] = (s, SAS, l1, w1, l2, s4)
 
-                # Spiral, Arc, Spiral(x2), Arc, Spiral (S-curve)
-                # length = 4*l1 + 2*l2 <= max_dist
-                #          l2 <= (max_dist / 2) - 2 * l1
-                for l2 in numpy.arange(res, max_dist/2.0 - 2*l1, res):
-                    s2 = Arc(s1.get_end(), l2)
-                    s3 = Spiral(s2.get_end(), 2*l1, -w1)
-                    s4 = Arc(s3.get_end(), l2)
-                    s5 = Spiral(s4.get_end(), l1, w1)
-                    p = is_lattice(s5.get_end())
-                    if p:
-                        s = sum(score(s5.get_end(), p))
-                        i = (index(start), index(p))
-                        s6 = Compound(s1, s2, s3, s4, s5)
-                        if i in seeds:
-                            if s < seeds[i][0]:
-                                seeds[i] = (s, S_Curve, l1, w1, l2, s6)
-                        else:
-                            print i
-                            seeds[i] = (s, S_Curve, l1, w1, l2, s6)
+    #            # Spiral, Arc, Spiral(x2), Arc, Spiral (S-curve)
+    #            # length = 4*l1 + 2*l2 <= max_dist
+    #            #          l2 <= (max_dist / 2) - 2 * l1
+    #            for l2 in numpy.arange(res, max_dist/2.0 - 2*l1, res):
+    #                s2 = Arc(s1.get_end(), l2)
+    #                s3 = Spiral(s2.get_end(), 2*l1, -w1)
+    #                s4 = Arc(s3.get_end(), l2)
+    #                s5 = Spiral(s4.get_end(), l1, w1)
+    #                p = is_lattice(s5.get_end())
+    #                if p:
+    #                    s = sum(score(s5.get_end(), p))
+    #                    i = (index(start), index(p))
+    #                    s6 = Compound(s1, s2, s3, s4, s5)
+    #                    if i in seeds:
+    #                        if s < seeds[i][0]:
+    #                            seeds[i] = (s, S_Curve, l1, w1, l2, s6)
+    #                    else:
+    #                        print i
+    #                        seeds[i] = (s, S_Curve, l1, w1, l2, s6)
 
-    print len(seeds)
+    #print len(seeds)
     tolerance = 0.01
 
     # Straight lines
@@ -249,12 +263,12 @@ def generate_trajectories(min_radius, num_angles):
 
     def sas(start, end):
         def err(args):
-            return score(SAS(start, *args).get_end(), end)
+            return yt_score(SAS(start, *args).get_end(), end)
         return err
 
     def scurve(start, end):
         def err(args):
-            return score(S_Curve(start, *args).get_end(), end)
+            return yt_score(S_Curve(start, *args).get_end(), end)
         return err
 
     #primitives = {
@@ -277,8 +291,8 @@ def generate_trajectories(min_radius, num_angles):
     xtol = 0.001 * 0.001 * 3
     print "xtol", xtol
 
-    found_seeds = 0
-    missed_seeds = 0
+    #found_seeds = 0
+    #missed_seeds = 0
 
     for start_angle in primitives:
         start = (0, 0, 2 * math.pi * start_angle / num_angles , 0)
@@ -287,128 +301,119 @@ def generate_trajectories(min_radius, num_angles):
             end = (end_pose[0], end_pose[1], 2.0 * math.pi * end_angle / \
                     num_angles, 0)
 
-            # starting guess:
-            #           l1,  w1, l2
-            #l_est = math.sqrt(end[0]*end[0] + end[1]*end[1]) + 0.2
-            #if end_pose[2] == 0:
-            #    radius_est = 0
-            #    w_est = 0
-            #else:
-            #    radius_est = l_est / (2 * math.pi * end_pose[2] / num_angles )
-            #    w_est = 1 / ( 2 * radius_est * l_est )
+            # Normalize to starting angle 0,
+            #  then optimize for delta-y and delta-theta
+            #  then add a linear section to match the desired delta-x
+            d_theta = end_pose[2] * 2.0 * math.pi / num_angles
+            hypotenuse = math.sqrt( end_pose[0]*end_pose[0] +
+                                    end_pose[1]*end_pose[1] )
+            angle = math.atan2( end_pose[1], end_pose[0] ) - start[2]
+            d_x = math.cos(angle) * hypotenuse
+            d_y = math.sin(angle) * hypotenuse
 
-            i = ((0, 0, start_angle, 0),
-                    (end_pose[0], end_pose[1], start_angle + end_pose[2], 0))
-            i = (index(start), index(end))
-            if i in seeds:
-                seed = seeds[i]
-                found_seeds += 1
+            normal_start = (0, 0, 0, 0)
+            normal_end = (d_x, d_y, d_theta, 0)
+
+            if d_theta > 0:
+                estimate = [ 0.5, 0.01, 0.5 ]
             else:
-                #print i
-                missed_seeds += 1
-                continue
+                estimate = [ 0.5, -0.01, 0.5 ]
 
-            print "Solving for", start, end
-            print "Starting score", seed[0]
-            estimate = [seed[2], seed[3], seed[4]]
-            segment = seed[1](start, *estimate)
-            s = sum(score(segment.get_end(), end))
-            if s != seed[0]:
-                print "Starting score", s
-                print segment.get_end()
-                print "Seed", seed
-                print segment
-                segment.plot(resolution=0.02)
-                seed[5].plot(resolution=0.02)
-                show()
-
-            if end[2] == start[2]:
-                if seed[1] != S_Curve:
-                    print "WARNING: wrong seed type for", start, "->", end
+            if d_theta == 0:
                 # estimate with s-curve
-                args, info, ier, mesg = scipy.optimize.fsolve(
-                        scurve(start, end), estimate, maxfev=max_iter,
-                        full_output=True, xtol=xtol)
-                segment = S_Curve(start, *args)
-                print "Ending score", sum(score(segment.get_end(), end))
-                if ier == 1:
-                    p = is_lattice(segment.get_end())
-                    assert(p)
-                    reachable[(start, end)] = segment
-                    print "Found", start, end
-
-                #estimate = [l_est / 8.0, w_est, 3.0 * l_est / 8.0]
-                ##estimate = [0, l_est / 8.0, w_est, 3.0 * l_est / 8.0, 0]
-                ## estimate with s-curve
-                #args, info, ier, mesg = scipy.optimize.fsolve(
-                #        scurve(start, end), estimate, maxfev=max_iter,
-                #        full_output=True, xtol=xtol)
-                #segment = S_Curve(*args)
-                ##segment = LS_Curve(*args)
-                #if ier == 1:
-                #    p = is_lattice(segment.get_end())
-                #    #assert(p)
-                #    reachable[(start, end)] = segment
-                #    print "Found", start, end
-                #estimate = [l_est / 8.0, w_est, 3.0 * l_est / 8.0]
-                ##estimate = [0, l_est / 8.0, w_est, 3.0 * l_est / 8.0, 0]
-                ## estimate with s-curve
-                #args, info, ier, mesg = scipy.optimize.fsolve(
-                #        scurve(start, end), estimate, maxfev=max_iter,
-                #        full_output=True, xtol=xtol)
-                #segment = S_Curve(*args)
-                ##segment = LS_Curve(*args)
-                #if ier == 1:
-                #    p = is_lattice(segment.get_end())
-                #    #assert(p)
-                #    reachable[(start, end)] = segment
-                #    print "Found", start, end
+                f = scurve(normal_start, normal_end)
+                t = S_Curve
             else:
-                if seed[1] != SAS:
-                    print "WARNING: wrong seed type for", start, "->", end
                 # estimate with arc
-                args, info, ier, mesg = scipy.optimize.fsolve(
-                        sas(start, end), estimate, maxfev=max_iter,
-                        full_output=True, xtol=xtol)
-                segment = SAS(start, *args)
-                print "Ending score", sum(score(segment.get_end(), end))
-                if ier == 1:
-                    p = is_lattice(segment.get_end())
-                    assert(p)
-                    reachable[(start, end)] = segment
-                    print "Found", start, end
-                #estimate = [l_est / 4.0, w_est / 2.0, 3.0 * l_est / 4.0]
-                ##estimate = [0, l_est / 4.0, w_est / 2.0, 3.0 * l_est / 4.0, 0]
-                ## estimate with arc
-                #args, info, ier, mesg = scipy.optimize.fsolve(
-                #        sas(start, end), estimate, maxfev=max_iter,
-                #        full_output=True, xtol=xtol)
-                #segment = SAS(*args)
-                ##segment = LSASL(*args)
-                #if ier == 1:
-                #    p = is_lattice(segment.get_end())
-                #    #assert(p)
-                #    reachable[(start, end)] = segment
-                #    print "Found", start, end
-                #estimate = [l_est / 4.0, -w_est / 2.0, 3.0 * l_est / 4.0]
-                ##estimate = [0, l_est / 4.0, -w_est / 2.0, 3.0 * l_est / 4.0, 0]
-                ## estimate with arc
-                #args, info, ier, mesg = scipy.optimize.fsolve(
-                #        sas(start, end), estimate, maxfev=max_iter,
-                #        full_output=True, xtol=xtol)
-                #segment = SAS(*args)
-                ##segment = LSASL(*args)
-                #if ier == 1:
-                #    p = is_lattice(segment.get_end())
-                #    #assert(p)
-                #    reachable[(start, end)] = segment
-                #    print "Found", start, end
+                f = sas(normal_start, normal_end)
+                t = SAS
 
-    total_seeds = found_seeds + missed_seeds
-    print "Found %d seeds out of %d primitives" % ( found_seeds, total_seeds)
+            args, info, ier, mesg = scipy.optimize.fsolve( f, estimate,
+                    maxfev=max_iter, full_output=True, xtol=xtol)
+
+            if ier == 1:
+                segment = t(normal_start, *args)
+                print yt_score(segment.get_end(), normal_end)
+                remaining_x = d_x - segment.get_end()[0]
+                if remaining_x < 0:
+                    print "WARNING: negative-length linear section", remaining_x
+                s1 = Linear(start, remaining_x)
+                s2 = t(s1.get_end(), *args)
+                segment = Compound(s1, s2)
+                print "Ending score", score(segment.get_end(), end)
+                p = is_lattice(segment.get_end())
+                assert(p)
+                reachable[(start, end)] = segment
+                print "Found", start, end
+
+            ## starting guess:
+            ##           l1,  w1, l2
+            ##l_est = math.sqrt(end[0]*end[0] + end[1]*end[1]) + 0.2
+            ##if end_pose[2] == 0:
+            ##    radius_est = 0
+            ##    w_est = 0
+            ##else:
+            ##    radius_est = l_est / (2 * math.pi * end_pose[2] / num_angles )
+            ##    w_est = 1 / ( 2 * radius_est * l_est )
+
+            #i = ((0, 0, start_angle, 0),
+            #        (end_pose[0], end_pose[1], start_angle + end_pose[2], 0))
+            #i = (index(start), index(end))
+            #if i in seeds:
+            #    seed = seeds[i]
+            #    found_seeds += 1
+            #else:
+            #    #print i
+            #    missed_seeds += 1
+            #    continue
+
+            #print "Solving for", start, end
+            #print "Starting score", seed[0]
+            #estimate = [seed[2], seed[3], seed[4]]
+            #segment = seed[1](start, *estimate)
+            #s = sum(score(segment.get_end(), end))
+            #if s != seed[0]:
+            #    print "Starting score", s
+            #    print segment.get_end()
+            #    print "Seed", seed
+            #    print segment
+            #    segment.plot(resolution=0.02)
+            #    seed[5].plot(resolution=0.02)
+            #    show()
+
+            #if end[2] == start[2]:
+            #    if seed[1] != S_Curve:
+            #        print "WARNING: wrong seed type for", start, "->", end
+            #    # estimate with s-curve
+            #    args, info, ier, mesg = scipy.optimize.fsolve(
+            #            scurve(start, end), estimate, maxfev=max_iter,
+            #            full_output=True, xtol=xtol)
+            #    segment = S_Curve(start, *args)
+            #    print "Ending score", sum(score(segment.get_end(), end))
+            #    if ier == 1:
+            #        p = is_lattice(segment.get_end())
+            #        assert(p)
+            #        reachable[(start, end)] = segment
+            #        print "Found", start, end
+            #else:
+            #    if seed[1] != SAS:
+            #        print "WARNING: wrong seed type for", start, "->", end
+            #    # estimate with arc
+            #    args, info, ier, mesg = scipy.optimize.fsolve(
+            #            sas(start, end), estimate, maxfev=max_iter,
+            #            full_output=True, xtol=xtol)
+            #    segment = SAS(start, *args)
+            #    print "Ending score", sum(score(segment.get_end(), end))
+            #    if ier == 1:
+            #        p = is_lattice(segment.get_end())
+            #        assert(p)
+            #        reachable[(start, end)] = segment
+            #        print "Found", start, end
+
+    #total_seeds = found_seeds + missed_seeds
+    #print "Found %d seeds out of %d primitives" % ( found_seeds, total_seeds)
 
     print reachable.keys()
-    print min_radius
     return reachable
 
 def main():
