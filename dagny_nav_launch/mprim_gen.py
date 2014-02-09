@@ -214,7 +214,7 @@ def generate_trajectories(min_radius, num_angles):
     for start_angle in range(3):
         primitives[start_angle] = []
         for x in range(8):
-            for y in range(8):
+            for y in range(x+1):
                 if x ==0 and y == 0:
                     continue
                 for angle in [ -2, -1, 0, 1, 2 ]:
