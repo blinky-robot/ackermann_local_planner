@@ -340,6 +340,8 @@ def main():
                         help="Primitive resolution (in meters)")
     parser.add_argument('-m', '--min-radius', default=0.6,
                         help="Minimum radius (in meters)")
+    parser.add_argument('-p', '--plot', action="store_true",
+                        help="Plot optimized trajectories")
 
     args = parser.parse_args()
 
@@ -358,8 +360,7 @@ def main():
 
     trajectories = generate_trajectories(args.min_radius / args.resolution,
                                 args.num_angles)
-    #print repr(trajectories)
-    print len(trajectories)
+    print len(trajectories), "base trajectories"
 
     # convert trajectories into a starting-angle-indexed map, similar to 
     #  how the primitives are laid out
@@ -370,48 +371,36 @@ def main():
             traj[i] = []
         traj[i].append(trajectory_to_mprim(t[0], t[1], trajectories[t], 10))
 
-    print traj
     expand_trajectories(traj)
 
-    #for p in trajectories:
-    #    #print p
-    #    segment = trajectories[p]
-    #    #print segment
+    if args.plot:
+        if len(trajectories) > 5:
+            for i in range(20):
+                sample = {}
+                for p in trajectories:
+                    end = p[1]
+                    if end[0] == i and end[1] <= i:
+                        sample[p] = trajectories[p]
+                    elif end[0] < i and end[1] == i:
+                        sample[p] = trajectories[p]
+                if len(sample) > 0:
+                    for p in sample:
+                        sample[p].plot(resolution=0.02)
+                    axis('equal')
+                    print i, len(sample)
+                    show()
 
-    #    cla() # clear axes
-    #    segment.plot(resolution=0.02)
-    #    axis('equal')
-    #    show()
+        if len(trajectories) > 0:
+            for p in trajectories:
+                #print p
+                segment = trajectories[p]
+                #print segment
 
-    #if len(trajectories) > 5:
-    #    for i in range(20):
-    #        sample = {}
-    #        for p in trajectories:
-    #            end = p[1]
-    #            if end[0] == i and end[1] <= i:
-    #                sample[p] = trajectories[p]
-    #            elif end[0] < i and end[1] == i:
-    #                sample[p] = trajectories[p]
-    #        if len(sample) > 0:
-    #            for p in sample:
-    #                sample[p].plot(resolution=0.02)
-    #            axis('equal')
-    #            print i, len(sample)
-    #            show()
-
-    #if len(trajectories) > 0:
-    #    for p in trajectories:
-    #        #print p
-    #        segment = trajectories[p]
-    #        #print segment
-
-    #        segment.plot(resolution=0.02)
-    #    axis('equal')
-    #    show()
-
-    #expand_primitives(primitives)
-
-    #prim = generate_mprim(primitives)
+                segment.plot(resolution=0.02)
+            axis('equal')
+            show()
+    
+    print sum(len(traj[t]) for t in traj) , "total trajectories"
 
     if not args.output:
         import yaml
