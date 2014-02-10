@@ -88,9 +88,11 @@ def expand_trajectories(traj, num_angles):
     # rotate and mirror primitives about the origin
     traj[4] = [ m.transform(mirror_xy, num_angles) for m in traj[0] ]
     for i in [ 5, 6, 7, 8 ]:
-        traj[i] = [ m.transform(mirror_y, num_angles) for m in traj[8 - i] ]
+        traj[i] = [ m.transform(mirror_y, num_angles) for m in
+                    traj[num_angles/2 - i] ]
     for i in range(9,16):
-        traj[i] = [ m.transform(mirror_x, num_angles) for m in traj[16 - i] ]
+        traj[i] = [ m.transform(mirror_x, num_angles) for m in
+                    traj[num_angles - i] ]
 
 def generate_mprim(prim):
     res = {}
