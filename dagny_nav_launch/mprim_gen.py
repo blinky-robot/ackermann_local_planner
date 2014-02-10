@@ -10,17 +10,51 @@ from primitives import *
 
 from pylab import *
 
+def normalize(angle):
+    while angle > 16:
+        angle = angle - 16
+    while angle < 0:
+        angle = angle + 16
+    return angle
+
 # mirror about the X axis
 def mirror_x(p):
-    return (p[0], -p[1], -p[2])
+    return (p[0], -p[1], normalize(-p[2]))
 
 # mirror about the Y axis
 def mirror_y(p):
-    return (-p[0], p[1], -p[2])
+    return (-p[0], p[1], normalize(8-p[2]))
 
 # mirror about x=y
 def mirror_xy(p):
-    return (p[1], p[0], -p[2])
+    # x -> y
+    # 0 -> 4
+    # 1 -> 3
+    # 2 -> 2
+    # 3 -> 1
+    # 4 -> 0
+    # 5 -> -1
+    # 6 -> -2
+    # 7 -> -3
+    # 8 -> -4
+    # y = 4 - x
+    #
+    #  x -> y
+    # -1 -> 5
+    # -2 -> 6
+    # -3 -> 7
+    # -4 -> 8
+    #  y = 4 - x
+    #
+    #  x -> y     x+y
+    # -5 -> -7    -12
+    # -6 -> -6    -12
+    # -7 -> -5    -12
+    # -8 -> -4    -12
+    #  y + x = -12
+    #  y = -12 - x
+    # 
+    return (p[1], p[0], normalize(4 - p[2]))
 
 # mirror about x=-y
 def mirror_x_y(p):
@@ -80,7 +114,7 @@ def expand_trajectories(traj):
     # rotate and mirror primitives about the origin
     traj[4] = [ m.transform(mirror_xy) for m in traj[0] ]
     for i in [ 5, 6, 7, 8 ]:
-        traj[i] = [ m.transform(mirror_y) for m in traj[8-i] ]
+        traj[i] = [ m.transform(mirror_y) for m in traj[8 - i] ]
     for i in range(9,16):
         traj[i] = [ m.transform(mirror_x) for m in traj[16 - i] ]
 
@@ -95,20 +129,19 @@ def generate_mprim(prim):
             res[start_a].append(mprim.MPrim(start, end_b, poses))
     return res
 
-def trajectory_to_mprim(start, end, trajectory, num_poses):
-    st = tuple(start[:3])
-    en = tuple(end[:3])
-    poses = list(trajectory.get_poses(n=num_poses-1))
-    poses.append(end)
-    return mprim.MPrim(st, en, poses)
-
 def index(p, num_angles):
     """ Get the index numers for a given point """
     x = int(round(p[0]))
     y = int(round(p[1]))
     t = int(round(p[2] * num_angles / ( math.pi * 2 )))
-    w = int(round(p[3]))
-    return (x, y, t, w)
+    return (x, y, t)
+
+def trajectory_to_mprim(start, end, trajectory, num_poses, num_angles):
+    st = index(start, num_angles)
+    en = index(end, num_angles)
+    poses = list(trajectory.get_poses(n=num_poses-1))
+    poses.append(end)
+    return mprim.MPrim(st, en, poses)
 
 def generate_trajectories(min_radius, num_angles):
     reachable = {}
@@ -371,7 +404,8 @@ def main():
         i = index(t[0], args.num_angles)[2]
         if not i in traj:
             traj[i] = []
-        traj[i].append(trajectory_to_mprim(t[0], t[1], trajectories[t], 10))
+        traj[i].append(trajectory_to_mprim(t[0], t[1], trajectories[t], 10,
+            args.num_angles))
 
     expand_trajectories(traj)
 
