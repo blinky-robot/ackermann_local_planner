@@ -333,7 +333,7 @@ def main():
     if args.dump_yaml:
         primitives = {}
         for i in traj:
-            primitives[i] = [ list(p.end[0], p.end[1], p.end[2] - i) for p in
+            primitives[i] = [ [p.end[0], p.end[1], p.end[2] - i] for p in
                               traj[i] ]
         print primitives
         config = { 'primitives': primitives, 'seed': seed }
