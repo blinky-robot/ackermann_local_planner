@@ -1,6 +1,6 @@
 <launch>
    <!-- Run AMCL -->
-   <include file="$(find dagny_nav_launch)/amcl_diff.launch" />
+   <include file="$(find dagny_nav_launch)/dagny_gmapping.launch" />
 
    <!-- move_base node -->
    <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
