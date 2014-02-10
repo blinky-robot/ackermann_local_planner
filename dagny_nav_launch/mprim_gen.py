@@ -268,10 +268,7 @@ def main():
 
     args = parser.parse_args()
 
-    # TODO: parse/handle these properly
-    # TODO: pull in num_angles from the config file along with base primitives
-    args.num_angles = 16
-
+    num_angles = 16
     primitives = None
     seed = [ 0.25, 0.5, 2.5 ]
     if args.yaml:
@@ -282,20 +279,22 @@ def main():
         if 'seed' in config:
             print "Loaded seed from %s" % ( args.yaml )
             seed = config['seed']
+        if 'num_angles' in config:
+            num_angles = config['num_angles']
 
     trajectories = generate_trajectories(args.min_radius / args.resolution,
-                                args.num_angles, primitives, seed)
+                                num_angles, primitives, seed)
     print len(trajectories), "base trajectories"
 
     # convert trajectories into a starting-angle-indexed map, similar to 
     #  how the primitives are laid out
     traj = {}
     for t in trajectories:
-        i = index(t[0], args.num_angles)[2]
+        i = index(t[0], num_angles)[2]
         if not i in traj:
             traj[i] = []
         traj[i].append(trajectory_to_mprim(t[0], t[1], trajectories[t], 10,
-            args.num_angles))
+            num_angles))
 
     if args.dump_yaml:
         primitives = {}
@@ -303,13 +302,15 @@ def main():
             primitives[i] = [ [p.end[0], p.end[1], p.end[2] - i] for p in
                               traj[i] ]
         print primitives
-        config = { 'primitives': primitives, 'seed': seed }
+        config = { 'primitives': primitives,
+                   'seed': seed,
+                   'num_angles': num_angles }
         with open(args.dump_yaml, 'w') as out:
             out.write(yaml.dump(config))
         print "Wrote config to %s" % ( args.dump_yaml )
         return
 
-    expand_trajectories(traj, args.num_angles)
+    expand_trajectories(traj, num_angles)
     
     total = sum(len(traj[t]) for t in traj)
     max_branch = max(len(traj[t]) for t in traj)
@@ -318,21 +319,21 @@ def main():
     if max_branch != min_branch:
         print "==================================="
         print " >>  Branching factor analysis  << "
-        print "Average branching factor:", float(total)/args.num_angles
+        print "Average branching factor:", float(total)/num_angles
         print "Maximum branching factor:", max_branch
         print "Minimum branching factor:", min_branch
-        for i in range(1 + args.num_angles / 8):
+        for i in range(1 + num_angles / 8):
             print "Angle %d, branching factor %d" % ( i, len(traj[i]) )
         if args.plot:
-            for i in range(1 + args.num_angles / 8):
+            for i in range(1 + num_angles / 8):
                 print "Plotting angle %d" % ( i )
                 for p in trajectories:
-                    if index(p[0], args.num_angles)[2] == i:
+                    if index(p[0], num_angles)[2] == i:
                         trajectories[p].plot(resolution=0.02)
                 axis('equal')
                 show()
     else:
-        print "Branching factor:", float(total)/args.num_angles
+        print "Branching factor:", float(total)/num_angles
         if args.plot:
             if len(trajectories) > 5:
                 for i in range(20):
