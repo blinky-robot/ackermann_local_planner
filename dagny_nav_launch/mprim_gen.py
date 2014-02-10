@@ -372,10 +372,23 @@ def main():
             show()
     
     total = sum(len(traj[t]) for t in traj)
+    max_branch = max(len(traj[t]) for t in traj)
+    min_branch = min(len(traj[t]) for t in traj)
     print total, "total trajectories"
-    print "Average branching factor:", float(total)/args.num_angles
-    print "Maximum branching factor:", max(len(traj[t]) for t in traj)
-    print "Minimum branching factor:", min(len(traj[t]) for t in traj)
+    if max_branch != min_branch:
+        print "==================================="
+        print " >>  Branching factor analysis  << "
+        print "Average branching factor:", float(total)/args.num_angles
+        print "Maximum branching factor:", max_branch
+        print "Minimum branching factor:", min_branch
+        for i in range(1 + args.num_angles / 8):
+            print "Angle %d, branching factor %d" % ( i, len(traj[i]) )
+        if args.plot:
+            for i in range(1 + args.num_angles / 8):
+                pass
+    else:
+        print "Branching factor:", float(total)/args.num_angles
+
 
 
     if args.output:
