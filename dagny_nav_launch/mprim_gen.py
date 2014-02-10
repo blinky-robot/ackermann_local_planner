@@ -280,6 +280,7 @@ def main():
             print "Loaded seed from %s" % ( args.yaml )
             seed = config['seed']
         if 'num_angles' in config:
+            print "Loaded num_angles from %s" % ( args.yaml )
             num_angles = config['num_angles']
 
     trajectories = generate_trajectories(args.min_radius / args.resolution,

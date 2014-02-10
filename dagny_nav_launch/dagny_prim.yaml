@@ -49,3 +49,4 @@ primitives:
 # The optimizer seed. these are the parameters for the sharpest transition
 # curve, but it's effectively magic.
 seed: [0.25, 0.5, 2.5]
+num_angles: 16
