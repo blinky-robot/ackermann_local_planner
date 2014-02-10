@@ -3,6 +3,7 @@
 import sys
 import mprim
 
+import yaml
 import math
 import numpy 
 import scipy.optimize
@@ -117,32 +118,10 @@ def trajectory_to_mprim(start, end, trajectory, num_poses, num_angles):
     poses.append(end)
     return mprim.MPrim(st, en, poses)
 
-def generate_trajectories(min_radius, num_angles):
-    reachable = {}
+def generate_trajectories(min_radius, num_angles, primitives, seed):
     tolerance = 0.01 # tolerance for matching to the grid
     print "Minimum radius", min_radius
 
-    def LSASL(start, l1, l2, w, l3, l4):
-        l2 = max(l2, 0.00000001)
-        l2 = min(l2, 20)
-        #w = 1 / (2 * l2 * radius )
-        w_max = 1 / (l2 * min_radius)
-        w = min(w, w_max)
-        w = max(w, -w_max)
-        l1 = max(l1, 0)
-        l1 = min(l1, 1)
-        l3 = max(l3, 0)
-        l4 = max(l4, 0)
-        l4 = min(l4, 1)
-        if w == 0:
-            return Linear(start, l1 + l2 * 2 + l3 + l4)
-        s1 = Linear(start, l1)
-        s2 = Spiral(s1.get_end(), l2, w)
-        s3 = Arc(s2.get_end(), l3)
-        s4 = Spiral(s3.get_end(), l2, -w)
-        s5 = Linear(s4.get_end(), l4)
-        return Compound(s1, s2, s3, s4, s5)
-    
     def SAS(start, l1, w, l2):
         #w = 1 / (2 * l1 * radius )
         l1 = max(l1, 0.00000001)
@@ -156,29 +135,6 @@ def generate_trajectories(min_radius, num_angles):
         s2 = Arc(s1.get_end(), l2)
         s3 = Spiral(s2.get_end(), l1, -w)
         return Compound(s1, s2, s3)
-    
-    def LS_Curve(start, l1, l2, w, l3, l4):
-        #w = 1 / (2 * l2 * radius )
-        l2 = max(l2, 0.00000001)
-        l2 = min(l2, 20)
-        w_max = 1 / (l2 * min_radius)
-        w = min(w, w_max)
-        w = max(w, -w_max)
-        l1 = max(l1, 0)
-        l1 = min(l1, 1)
-        l3 = max(l3, 0)
-        l4 = max(l4, 0)
-        l4 = min(l4, 1)
-        if w == 0:
-            return Linear(start, l1 + l2 * 4 + l3 * 2 + l4)
-        s1 = Linear(start, l1)
-        s2 = Spiral(s1.get_end(), l2, w)
-        s3 = Arc(s2.get_end(), l3)
-        s4 = Spiral(s3.get_end(), l2*2.0, -w)
-        s5 = Arc(s4.get_end(), l3)
-        s6 = Spiral(s5.get_end(), l2, w)
-        s7 = Linear(s6.get_end(), l4)
-        return Compound(s1, s2, s3, s4, s5, s6, s7)
     
     def S_Curve(start, l1, w, l2):
         #w = 1 / (2 * l1 * radius )
@@ -243,33 +199,23 @@ def generate_trajectories(min_radius, num_angles):
             return yt_score(S_Curve(start, *args).get_end(), end)
         return err
 
-    #primitives = {
-    #    0: [ (4, 1, 1), (5, 1, 1), (6, 1, 1), (6, 2, 2),
-    #         (5, 1, 0), (8, 2, 0) ],
-    #    1: [ (3, 2, 1), (4, 1, -1), (4, 4, 2), (6, 0, -2),
-    #         (3, 2, 0), (4, 1, 0),  (4, 4, 0), (6, 0, 0) ],
-    #    2: [ (2, 3, 1), (2, 5, 2),
-    #         (2, 3, 0), (2, 5, 0) ]
-    #    }
-    #primitives = {
-    #    0: [ (4, 1, 1), (5, 1, 1), (6, 1, 1), (7, 1, 1), (8, 1, 1), (9, 1, 1),
-    #         (4, -1, -1), (8, -1, -1), (9, -1, -1),
-    #         (5, 2, 2), (6, 2, 2), (7, 2, 2), (8, 2, 2), (9, 2, 2),
-    #         (10, 1, 1), (11, 1, 1)],
-    #    }
-    primitives = {}
-    for start_angle in range(3):
-        primitives[start_angle] = []
-        for x in range(8):
-            for y in range(x+1):
-                if x ==0 and y == 0:
-                    continue
-                for angle in [ -2, -1, 0, 1, 2 ]:
-                    primitives[start_angle].append((x, y, angle,))
+    # if we weren't given any primitives, make some up
+    if primitives is None:
+        primitives = {}
+        for start_angle in range(3):
+            primitives[start_angle] = []
+            for x in range(8):
+                for y in range(x+1):
+                    if x ==0 and y == 0:
+                        continue
+                    for angle in [ -2, -1, 0, 1, 2 ]:
+                        primitives[start_angle].append((x, y, angle,))
 
     max_iter = 10000000
     xtol = 0.001 * 0.001 * 3 * 0.01
     print "xtol", xtol
+
+    reachable = {}
 
     for start_angle in primitives:
         start = (0, 0, 2 * math.pi * start_angle / num_angles , 0)
@@ -291,10 +237,9 @@ def generate_trajectories(min_radius, num_angles):
             normal_start = (0, 0, 0, 0)
             normal_end = (d_x, d_y, d_theta, 0)
 
-            if d_theta > 0:
-                estimate = [ 0.25, 0.5, 2.5 ]
-            else:
-                estimate = [ 0.25, -0.5, 2.5 ]
+            estimate = list(seed)
+            if d_theta <= 0:
+                estimate[1] = -estimate[1]
 
             if abs(d_theta) < 0.0001 and abs(d_y) < 0.0001:
                 t = Linear
@@ -337,7 +282,6 @@ def generate_trajectories(min_radius, num_angles):
                     l2 = args[2] / hypotenuse
                     print l1, w, l2
 
-    #print reachable.keys()
     return reachable
 
 def main():
@@ -351,24 +295,29 @@ def main():
                         help="Minimum radius (in meters)")
     parser.add_argument('-p', '--plot', action="store_true",
                         help="Plot optimized trajectories")
+    parser.add_argument('-y', '--yaml',
+                        help="YAML file to load configuration from")
+    parser.add_argument('-d', '--dump-yaml',
+                        help="File to dump generated YAML configuration to")
 
     args = parser.parse_args()
 
     # TODO: parse/handle these properly
     args.num_angles = 16
 
-    # primitives should explicitly allow differing numbers of primitives
-    # per start angle
-    # we should also have reflection/rotation functions to generate the
-    # remainder of the primitives from the initial primitives
-    primitives = {
-        0: [ (1, 0, 0), (4, 1, 1), (5, 2, 2) ],
-        1: [ (2, 1, 0), (3, 2, 1), (4, 1, -1), (4, 4, 2), (6, 0, -2) ],
-        2: [ (1, 1, 0), (2, 3, 1), (2, 5, 2) ]
-        }
+    primitives = None
+    seed = [ 0.25, 0.5, 2.5 ]
+    if args.yaml:
+        config = yaml.load(open(args.yaml))
+        if 'primitives' in config:
+            print "Loaded primitives from %s" % ( args.yaml )
+            primitives = config['primitives']
+        if 'seed' in config:
+            print "Loaded seed from %s" % ( args.yaml )
+            seed = config['seed']
 
     trajectories = generate_trajectories(args.min_radius / args.resolution,
-                                args.num_angles)
+                                args.num_angles, primitives, seed)
     print len(trajectories), "base trajectories"
 
     # convert trajectories into a starting-angle-indexed map, similar to 
@@ -380,6 +329,18 @@ def main():
             traj[i] = []
         traj[i].append(trajectory_to_mprim(t[0], t[1], trajectories[t], 10,
             args.num_angles))
+
+    if args.dump_yaml:
+        primitives = {}
+        for i in traj:
+            primitives[i] = [ list(p.end[0], p.end[1], p.end[2] - i) for p in
+                              traj[i] ]
+        print primitives
+        config = { 'primitives': primitives, 'seed': seed }
+        with open(args.dump_yaml, 'w') as out:
+            out.write(yaml.dump(config))
+        print "Wrote config to %s" % ( args.dump_yaml )
+        return
 
     expand_trajectories(traj, args.num_angles)
 
