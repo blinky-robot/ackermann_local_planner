@@ -96,9 +96,11 @@ def generate_mprim(prim):
     return res
 
 def trajectory_to_mprim(start, end, trajectory, num_poses):
+    st = tuple(start[:3])
+    en = tuple(end[:3])
     poses = list(trajectory.get_poses(n=num_poses-1))
     poses.append(end)
-    return mprim.MPrim(start, end, poses)
+    return mprim.MPrim(st, en, poses)
 
 def index(p, num_angles):
     """ Get the index numers for a given point """

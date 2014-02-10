@@ -32,6 +32,8 @@ intermediateposes: %d
         """ Return a NEW copy of this MPrim as transformed by transform """
         start = transform(self.start)
         end = transform(self.end)
+        if start == self.start and end == self.end:
+            return None
         cost = self.cost
         poses = []
         for pose in self.poses:
