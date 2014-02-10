@@ -410,7 +410,12 @@ def main():
             axis('equal')
             show()
     
-    print sum(len(traj[t]) for t in traj) , "total trajectories"
+    total = sum(len(traj[t]) for t in traj)
+    print total, "total trajectories"
+    print "Average branching factor:", float(total)/args.num_angles
+    print "Maximum branching factor:", max(len(traj[t]) for t in traj)
+    print "Minimum branching factor:", min(len(traj[t]) for t in traj)
+
 
     if not args.output:
         import yaml
