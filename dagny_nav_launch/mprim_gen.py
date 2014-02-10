@@ -72,17 +72,17 @@ def expand_trajectories(traj):
     # mirror angle 1 primitives about x=y
     traj[3] = []
     for t in traj[1]:
-        m = transform(mirror_xy)
+        m = t.transform(mirror_xy)
         assert(m)
         if m:
             traj[3].append(m)
 
     # rotate and mirror primitives about the origin
-    prim[4] = [ m.transform(mirror_xy) for m in prim[0] ]
+    traj[4] = [ m.transform(mirror_xy) for m in traj[0] ]
     for i in [ 5, 6, 7, 8 ]:
-        prim[i] = [ m.transform(mirror_y) for m in prim[8-i] ]
+        traj[i] = [ m.transform(mirror_y) for m in traj[8-i] ]
     for i in range(9,16):
-        prim[i] = [ m.transform(mirror_x) for m in prim[16 - i] ]
+        traj[i] = [ m.transform(mirror_x) for m in traj[16 - i] ]
 
 def generate_mprim(prim):
     res = {}
@@ -371,6 +371,7 @@ def main():
         traj[i].append(trajectory_to_mprim(t[0], t[1], trajectories[t], 10))
 
     print traj
+    expand_trajectories(traj)
 
     #for p in trajectories:
     #    #print p
@@ -408,15 +409,15 @@ def main():
     #    axis('equal')
     #    show()
 
-    expand_primitives(primitives)
+    #expand_primitives(primitives)
 
-    prim = generate_mprim(primitives)
+    #prim = generate_mprim(primitives)
 
     if not args.output:
         import yaml
         print yaml.dump(mprim)
     else:
-        mprim.write_mprim(args.output, prim, args.resolution)
+        mprim.write_mprim(args.output, traj, args.resolution)
 
 if __name__ == '__main__':
     main()
