@@ -417,10 +417,7 @@ def main():
     print "Minimum branching factor:", min(len(traj[t]) for t in traj)
 
 
-    if not args.output:
-        import yaml
-        print yaml.dump(mprim)
-    else:
+    if args.output:
         mprim.write_mprim(args.output, traj, args.resolution)
 
 if __name__ == '__main__':
