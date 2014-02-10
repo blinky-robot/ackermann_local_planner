@@ -57,6 +57,8 @@ class Segment(object):
                 assert(False)
             n = self._length / resolution
         n = int(round(n + 0.5))
+        if n > 1:
+            n -= 1
         resolution = self._length / n
         for i in range(n):
             yield self.get_pose(i * resolution)

@@ -113,6 +113,7 @@ def trajectory_to_mprim(start, end, trajectory, num_poses, num_angles):
     st = index(start, num_angles)
     en = index(end, num_angles)
     poses = list(trajectory.get_poses(n=num_poses-1))
+    assert(len(poses) == num_poses-1)
     poses.append(end)
     return mprim.MPrim(st, en, poses)
 
