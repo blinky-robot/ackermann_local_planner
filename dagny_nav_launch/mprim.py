@@ -25,7 +25,7 @@ intermediateposes: %d
 """%(self.start[2], self.end[0], self.end[1], self.end[2],
      self.cost, len(self.poses))
         for pose in self.poses:
-            s += "%0.4f %0.4f %0.4f\n"%(pose[0]*res, pose[1]*res, pose[2]*res)
+            s += "%0.4f %0.4f %0.4f\n"%(pose[0]*res, pose[1]*res, pose[2])
         return s
 
     def transform(self, transform):
@@ -59,7 +59,8 @@ def read_mprim(file):
             pose_cnt = read_int(f)
             poses = []
             for j in range(pose_cnt):
-                pose = tuple(float(a)/resolution for a in f.readline().split())
+                line = f.readline().split()
+                pose = tuple(line[0]/resolution, line[1]/resolution, line[2])
                 poses.append(pose)
             primitives[startangle].append(MPrim((0, 0, startangle), endpose, poses, cost))
     return primitives
