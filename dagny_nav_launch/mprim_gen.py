@@ -10,27 +10,27 @@ from primitives import *
 
 from pylab import *
 
-def normalize(angle):
-    while angle > 16:
-        angle = angle - 16
+def normalize(angle, max_angle):
+    while angle > max_angle:
+        angle = angle - max_angle 
     while angle < 0:
-        angle = angle + 16
+        angle = angle + max_angle
     return angle
 
 # mirror about the X axis
-def mirror_x(p):
-    return (p[0], -p[1], normalize(-p[2]))
+def mirror_x(p, max_angle):
+    return (p[0], -p[1], normalize(-p[2], max_angle))
 
 # mirror about the Y axis
-def mirror_y(p):
-    return (-p[0], p[1], normalize(8-p[2]))
+def mirror_y(p, max_angle):
+    return (-p[0], p[1], normalize(max_angle/2 - p[2], max_angle))
 
 # mirror about x=y
-def mirror_xy(p):
-    return (p[1], p[0], normalize(4 - p[2]))
+def mirror_xy(p, max_angle):
+    return (p[1], p[0], normalize(max_angle/4 - p[2], max_angle))
 
 # mirror about x=-y
-def mirror_x_y(p):
+def mirror_x_y(p, max_angle):
     return (-p[1], -p[0], p[2])
 
 def expand_primitives(prim):
@@ -58,12 +58,12 @@ def expand_primitives(prim):
     for i in range(9,16):
         prim[i] = map(mirror_x, prim[16 - i])
 
-def expand_trajectories(traj):
+def expand_trajectories(traj, num_angles):
     # mirror angle 0 primitives about X
     traj_0 = list(traj[0])
     for t in traj[0]:
         # transform will return None if the primitive was unmodified
-        m = t.transform(mirror_x)
+        m = t.transform(mirror_x, num_angles)
         if m:
             traj_0.append(m)
     traj[0] = traj_0
@@ -71,7 +71,7 @@ def expand_trajectories(traj):
     # mirror angle 2 trajectories about x=y
     traj_2 = list(traj[2])
     for t in traj[2]:
-        m = t.transform(mirror_xy)
+        m = t.transform(mirror_xy, num_angles)
         if m:
             traj_2.append(m)
     traj[2] = traj_2
@@ -79,17 +79,17 @@ def expand_trajectories(traj):
     # mirror angle 1 primitives about x=y
     traj[3] = []
     for t in traj[1]:
-        m = t.transform(mirror_xy)
+        m = t.transform(mirror_xy, num_angles)
         assert(m)
         if m:
             traj[3].append(m)
 
     # rotate and mirror primitives about the origin
-    traj[4] = [ m.transform(mirror_xy) for m in traj[0] ]
+    traj[4] = [ m.transform(mirror_xy, num_angles) for m in traj[0] ]
     for i in [ 5, 6, 7, 8 ]:
-        traj[i] = [ m.transform(mirror_y) for m in traj[8 - i] ]
+        traj[i] = [ m.transform(mirror_y, num_angles) for m in traj[8 - i] ]
     for i in range(9,16):
-        traj[i] = [ m.transform(mirror_x) for m in traj[16 - i] ]
+        traj[i] = [ m.transform(mirror_x, num_angles) for m in traj[16 - i] ]
 
 def generate_mprim(prim):
     res = {}
@@ -381,7 +381,7 @@ def main():
         traj[i].append(trajectory_to_mprim(t[0], t[1], trajectories[t], 10,
             args.num_angles))
 
-    expand_trajectories(traj)
+    expand_trajectories(traj, args.num_angles)
 
     if args.plot:
         if len(trajectories) > 5:

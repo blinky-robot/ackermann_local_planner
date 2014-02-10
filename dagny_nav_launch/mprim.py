@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import math
+
 class MPrim():
     def __init__(self, start, end, poses, cost=1):
         self.start = start
@@ -28,16 +30,16 @@ intermediateposes: %d
             s += "%0.4f %0.4f %0.4f\n"%(pose[0]*res, pose[1]*res, pose[2])
         return s
 
-    def transform(self, transform):
+    def transform(self, transform, max_angle):
         """ Return a NEW copy of this MPrim as transformed by transform """
-        start = transform(self.start)
-        end = transform(self.end)
+        start = transform(self.start, max_angle)
+        end = transform(self.end, max_angle)
         if start == self.start and end == self.end:
             return None
         cost = self.cost
         poses = []
         for pose in self.poses:
-            poses.append(transform(pose))
+            poses.append(transform(pose, math.pi * 2))
         return MPrim(start, end, poses, cost)
 
 def read_int(f):
