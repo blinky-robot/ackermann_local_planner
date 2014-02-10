@@ -343,33 +343,6 @@ def main():
         return
 
     expand_trajectories(traj, args.num_angles)
-
-    if args.plot:
-        if len(trajectories) > 5:
-            for i in range(20):
-                sample = {}
-                for p in trajectories:
-                    end = p[1]
-                    if end[0] == i and end[1] <= i:
-                        sample[p] = trajectories[p]
-                    elif end[0] < i and end[1] == i:
-                        sample[p] = trajectories[p]
-                if len(sample) > 0:
-                    for p in sample:
-                        sample[p].plot(resolution=0.02)
-                    axis('equal')
-                    print i, len(sample)
-                    show()
-
-        if len(trajectories) > 0:
-            for p in trajectories:
-                #print p
-                segment = trajectories[p]
-                #print segment
-
-                segment.plot(resolution=0.02)
-            axis('equal')
-            show()
     
     total = sum(len(traj[t]) for t in traj)
     max_branch = max(len(traj[t]) for t in traj)
@@ -385,9 +358,40 @@ def main():
             print "Angle %d, branching factor %d" % ( i, len(traj[i]) )
         if args.plot:
             for i in range(1 + args.num_angles / 8):
-                pass
+                print "Plotting angle %d" % ( i )
+                for p in trajectories:
+                    if index(p[0], args.num_angles)[2] == i:
+                        trajectories[p].plot(resolution=0.02)
+                axis('equal')
+                show()
     else:
         print "Branching factor:", float(total)/args.num_angles
+        if args.plot:
+            if len(trajectories) > 5:
+                for i in range(20):
+                    sample = {}
+                    for p in trajectories:
+                        end = p[1]
+                        if end[0] == i and end[1] <= i:
+                            sample[p] = trajectories[p]
+                        elif end[0] < i and end[1] == i:
+                            sample[p] = trajectories[p]
+                    if len(sample) > 0:
+                        for p in sample:
+                            sample[p].plot(resolution=0.02)
+                        axis('equal')
+                        print i, len(sample)
+                        show()
+    
+            if len(trajectories) > 0:
+                for p in trajectories:
+                    #print p
+                    segment = trajectories[p]
+                    #print segment
+    
+                    segment.plot(resolution=0.02)
+                axis('equal')
+                show()
 
 
 
