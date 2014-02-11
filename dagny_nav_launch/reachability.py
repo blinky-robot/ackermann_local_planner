@@ -95,6 +95,50 @@ def main():
     height = max_y - min_y
     print
 
+    # do some numeric analysis on the results:
+    #  maximum number of angles we can reach at a point
+    #  minimum number of angles we can reach at a point
+
+    # endpoints will be ( number of primitives that end at xy, minimum
+    #  iterations to reach xy ) indexed by ending position
+    endpoints = {}
+    # coverage_count will collect the number of points for each count of
+    #  reachable positions. ie coverage_count[1] = 12 means that there are
+    #  12 points where only 1 angle is reachable
+    coverage_count = {}
+    max_count = 0
+    min_count = 1000 # fixme
+
+    for p in space:
+        value = space[p]
+        xy = (p[0], p[1])
+        count = 1
+        if xy in endpoints:
+            count = endpoints[xy][0] + 1
+            value = min(value, endpoints[xy][1])
+        endpoints[xy] = (count, value)
+        max_count = max(count, max_count)
+        min_count = min(count, min_count)
+        if not count in coverage_count:
+            coverage_count[count] = 0
+        coverage_count[count] += 1
+            
+    print "Max count", max_count
+
+    spaces = (width+1)*(height+1)
+    if len(endpoints) < spaces:
+        print "%d points are totally unreachable" % ( spaces - len(endpoints) )
+        coverage_count[0] = spaces - len(endpoints)
+    else:
+        coverage_count[0] = 0
+        print "Min count", min_count
+
+    print "Coverage data:"
+    for count in coverage_count:
+        print "%d angles reachable at %d points" % ( count,
+                                                     coverage_count[count] )
+
+
     if args.grids:
         # reachability grids represent the number of iterations required to
         #  reach a given target angle (img_A.png) for every point
@@ -132,21 +176,6 @@ def main():
                     path ]
             for start,end in zip(path[0:-1], path[1:]):
                 draw.line(start + end, fill=(0, 128, 128))
-
-        endpoints = {}
-        max_count = 0
-
-        for p in space:
-            value = space[p]
-            xy = (p[0], p[1])
-            count = 1
-            if xy in endpoints:
-                count = endpoints[xy][0] + 1
-                value = min(value, endpoints[xy][1])
-            endpoints[xy] = (count, value)
-            max_count = max(count, max_count)
-                
-        print "Max count", max_count
 
         for p in endpoints:
             xy = (p[0]-min_x, p[1]-min_y)
