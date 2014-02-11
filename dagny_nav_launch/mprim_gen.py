@@ -297,6 +297,18 @@ def main():
         traj[i].append(trajectory_to_mprim(t[0], t[1], trajectories[t], 10,
             num_angles))
 
+    # if we were asked to find specific primitives, report which ones
+    #  couldn't be found
+    if primitives:
+        found = {}
+        for i in traj:
+            found[i] = [ [t.end[0], t.end[1], t.end[2] - i] for t in traj[i] ]
+        for i in primitives:
+            for p in primitives[i]:
+                if not p in found[i]:
+                    print "Failed to find solution for primitive %d -> %s" % \
+                            ( i, str(p) )
+
     if args.dump_yaml:
         primitives = {}
         for i in traj:
