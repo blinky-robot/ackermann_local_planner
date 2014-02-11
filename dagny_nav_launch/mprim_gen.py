@@ -21,11 +21,12 @@ def normalize(angle, max_angle):
 EQUAL_ANGLES = 1
 GRID_ANGLES = 2
 ANGLE_TYPE = EQUAL_ANGLES
+#ANGLE_TYPE = GRID_ANGLES
 
-def index_angle(angle, num_angles):
+def norm_angle(angle, num_angles):
     if ANGLE_TYPE == EQUAL_ANGLES:
         # Assuming angles are evenly distributed
-        n1 = round( angle * num_angles / ( math.pi * 2 ))
+        n1 = angle * num_angles / ( math.pi * 2 )
         n1 = normalize(n1, num_angles)
         return n1
     elif ANGLE_TYPE == GRID_ANGLES:
@@ -41,7 +42,7 @@ def index_angle(angle, num_angles):
                 norm = 1.0
             else:
                 norm = abs(1.0 / s)
-            plus = round(norm * c * (num_angles / 8))
+            plus = norm * c * (num_angles / 8)
             # upper or lower triangle
             #  base 1(upper) or 3(lower)
             if s > 0:
@@ -59,7 +60,7 @@ def index_angle(angle, num_angles):
                 assert(False)
             else:
                 norm = abs(1.0 / c)
-            plus = round(norm * s * (num_angles / 8))
+            plus = norm * s * (num_angles / 8)
             # left or right triangle
             #  base 0(right) or 2(left)
             if c > 0:
@@ -76,6 +77,11 @@ def index_angle(angle, num_angles):
     else:
         # neither angle type. die
         assert(False)
+
+def index_angle(angle, num_angles):
+    n1 = round(norm_angle(angle, num_angles))
+    n1 = normalize(n1, num_angles)
+    return n1
 
 def round_angle(angle, num_angles):
     if ANGLE_TYPE == EQUAL_ANGLES:
@@ -123,6 +129,16 @@ def round_angle(angle, num_angles):
     else:
         # neither angle type. die
         assert(False)
+
+def angle_from_index(i, num_angles):
+    if ANGLE_TYPE == EQUAL_ANGLES:
+        return i * math.pi * 2 / num_angles
+    elif ANGLE_TYPE == GRID_ANGLES:
+        return math.pi
+    else:
+        # neither angle type. die
+        assert(False)
+
 
 # mirror about the X axis
 def mirror_x(p, max_angle):
@@ -179,7 +195,7 @@ def index(p, num_angles):
     """ Get the index numers for a given point """
     x = int(round(p[0]))
     y = int(round(p[1]))
-    t = int(round(p[2] * num_angles / ( math.pi * 2 )))
+    t = int(round_angle(p[2], num_angles))
     return (x, y, t)
 
 def trajectory_to_mprim(start, end, trajectory, num_poses, num_angles):
@@ -228,6 +244,7 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
         e1 = (p[0] - target[0])*(p[0] - target[0])
         e2 = (p[1] - target[1])*(p[1] - target[1])
         # theta error to nearest angle
+        #  TODO: write a function for this angle normalization
         angle = p[2] * num_angles / (math.pi * 2)
         target_angle = target[2] * num_angles / (math.pi * 2)
         e3 = (angle - target_angle)*(angle - target_angle)
@@ -242,6 +259,7 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
             e1 = 0
         e2 = (p[1] - target[1])*(p[1] - target[1])
         # theta error to nearest angle
+        #  TODO: write a function for this angle normalization
         angle = p[2] * num_angles / (math.pi * 2)
         target_angle = target[2] * num_angles / (math.pi * 2)
         e3 = (angle - target_angle)*(angle - target_angle)
@@ -253,11 +271,11 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
         e1 = abs(p[0] - round(p[0]))
         e2 = abs(p[1] - round(p[1]))
         # theta error to nearest angle
+        #  TODO: write a function for this angle normalization
         angle = p[2] * num_angles / (math.pi * 2)
         e3 = abs(angle - round(angle))
         if e1 < tolerance and e2 < tolerance and e3 < tolerance:
-            return (round(p[0]), round(p[1]),
-                    math.pi * 2 * round(angle) / num_angles, p[3])
+            return (round(p[0]), round(p[1]), round_angle(p[2]), p[3])
         else:
             return None
 
@@ -290,15 +308,18 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
     reachable = {}
 
     for start_angle in primitives:
+        # TODO: write a function to go from index to angle
         start = (0, 0, 2 * math.pi * start_angle / num_angles , 0)
         for end_pose in primitives[start_angle]:
             end_angle = start_angle + end_pose[2]
+            # TODO: write a function to go from index to angle
             end = (end_pose[0], end_pose[1], 2.0 * math.pi * end_angle / \
                     num_angles, 0)
 
             # Normalize to starting angle 0,
             #  then optimize for delta-y and delta-theta
             #  then add a linear section to match the desired delta-x
+            # TODO: write a function to go from index to angle
             d_theta = end_pose[2] * 2.0 * math.pi / num_angles
             hypotenuse = math.sqrt( end_pose[0]*end_pose[0] +
                                     end_pose[1]*end_pose[1] )
@@ -487,8 +508,27 @@ def main():
 
 if __name__ == '__main__':
     # simple test for index_angle
-    #n = 8
-    #for angle in numpy.arange(0, math.pi*2, math.pi / (n*4) ):
-    #    index_angle(angle, n)
-    #    round_angle(angle, n)
+    #n = 32
+    #ix = []
+    #norm = []
+    #index = []
+    #angles = []
+    #rounded = []
+    #out = []
+
+    #for i in range(n*4):
+    #    angle = (math.pi * 2) * i / (n*4)
+    #    ix.append(i)
+    #    angles.append(angle)
+    #    norm.append(norm_angle(angle, n))
+    #    index.append(index_angle(angle, n))
+    #    rounded.append(round_angle(angle, n))
+    #    out.append(angle_from_index(i/4, n))
+    #plot(ix, norm)
+    #plot(ix, index)
+    #show()
+    #plot(ix, angles)
+    #plot(ix, rounded)
+    #plot(ix, out)
+    #show()
     main()
