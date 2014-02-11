@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import sys
 import mprim
 import argparse
 from PIL import Image, ImageDraw
@@ -16,13 +17,19 @@ def main():
     parser = argparse.ArgumentParser("Reachability analysis for SBPL motion primitives")
     parser.add_argument("file", help="Motion primitive file")
     parser.add_argument("-i", "--iterations", help="Number of iterations to do",
-        default=4, type=int)
+        default=0, type=int)
     parser.add_argument("-o", "--outfile", help="Output File",
         default="out")
     parser.add_argument('-a', '--all', help="All angles", action="store_true",
         default=False)
     parser.add_argument('-s', '--start', help="Start Angle", default=0,
         type=int)
+    parser.add_argument('-r', '--range', help="Maximum range", default=0,
+            type=int)
+    parser.add_argument('-g', '--grids', action='store_true',
+                        help="Render reachability grids")
+    parser.add_argument('-p', '--paths', action='store_true',
+                        help="Render paths")
 
     args = parser.parse_args()
 
@@ -40,12 +47,25 @@ def main():
 
     paths = []
 
+    if args.iterations == 0:
+        if args.range == 0:
+            print "ERROR: must specify range or iterations"
+            sys.exit(1)
+        args.iterations = args.range * 2
+
+    old_len = len(space)
     for i in range(args.iterations):
         new_space = {}
         for start in space:
             if space[start] == i:
                 for p in primitives[start[2]]:
                     end = sum(start, p.end)
+
+                    if args.range > 0:
+                        if abs(end[0]) > args.range:
+                            continue
+                        if abs(end[1]) > args.range:
+                            continue
 
                     min_x = min(min_x, end[0])
                     max_x = max(max_x, end[0])
@@ -61,6 +81,10 @@ def main():
 
         for s in new_space:
             space[s] = new_space[s]
+        if len(space) == old_len:
+            print "Didn't find any new points after %d iterations. Done!" % i
+            break
+        old_len = len(space)
 
     print "Found %d final poses"%(len(space))
     print
@@ -71,66 +95,75 @@ def main():
     height = max_y - min_y
     print
 
-    print "Rendering reachability grids"
-    print (width, height)
-    print
+    if args.grids:
+        # reachability grids represent the number of iterations required to
+        #  reach a given target angle (img_A.png) for every point
+        print "Rendering reachability grids"
+        print (width, height)
+        print
 
-    im = [ Image.new("RGB", (width+1, height+1)) for i in range(16) ]
+        im = [ Image.new("RGB", (width+1, height+1)) for i in range(16) ]
 
-    for p in space:
-        xy = (p[0]-min_x, p[1]-min_y)
-        color = im[p[2]].getpixel(xy)
-        v = space[p] * 255 / args.iterations
-        color = (v, v, v)
-        im[p[2]].putpixel(xy, color)
+        for p in space:
+            xy = (p[0]-min_x, p[1]-min_y)
+            color = im[p[2]].getpixel(xy)
+            v = space[p] * 255 / args.iterations
+            color = (v, v, v)
+            im[p[2]].putpixel(xy, color)
 
-    for i in range(16):
-        im[i].putpixel((-min_x, -min_y), (0, 255, 0))
-        im[i].save("%s_%d.png"%(args.outfile, i), "PNG")
+        # put a green pixel in the middle for reference, and write to disk
+        for i in range(16):
+            im[i].putpixel((-min_x, -min_y), (0, 255, 0))
+            im[i].save("%s_%d.png"%(args.outfile, i), "PNG")
 
     path_scale = 64
-    print "Rendering paths"
-    print (width*path_scale, height*path_scale)
-    print
-    path_im = Image.new("RGB", (width*path_scale + 1, height*path_scale + 1),
-        (255, 255, 255))
-    draw = ImageDraw.Draw(path_im)
+    if args.paths:
+        print "Rendering paths"
+        print (width*path_scale, height*path_scale)
+        print
+        path_im = Image.new("RGB", (width*path_scale + 1,
+                                    height*path_scale + 1),
+                            (255, 255, 255))
+        draw = ImageDraw.Draw(path_im)
 
-    for path in paths:
-        path = [ (p[0]-min_x, p[1]-min_y) for p in path ]
-        path = [ (int(p[0]*path_scale), int(p[1]*path_scale)) for p in path ]
-        for start,end in zip(path[0:-1], path[1:]):
-            draw.line(start + end, fill=(0, 128, 128))
+        for path in paths:
+            path = [ (p[0]-min_x, p[1]-min_y) for p in path ]
+            path = [ (int(p[0]*path_scale), int(p[1]*path_scale)) for p in
+                    path ]
+            for start,end in zip(path[0:-1], path[1:]):
+                draw.line(start + end, fill=(0, 128, 128))
 
-    endpoints = {}
-    max_count = 0
+        endpoints = {}
+        max_count = 0
 
-    for p in space:
-        value = space[p]
-        xy = (p[0], p[1])
-        count = 1
-        if xy in endpoints:
-            count = endpoints[xy][0] + 1
-            value = min(value, endpoints[xy][1])
-        endpoints[xy] = (count, value)
-        max_count = max(count, max_count)
-            
-    print "Max count", max_count
+        for p in space:
+            value = space[p]
+            xy = (p[0], p[1])
+            count = 1
+            if xy in endpoints:
+                count = endpoints[xy][0] + 1
+                value = min(value, endpoints[xy][1])
+            endpoints[xy] = (count, value)
+            max_count = max(count, max_count)
+                
+        print "Max count", max_count
 
-    for p in endpoints:
-        xy = (p[0]-min_x, p[1]-min_y)
-        xy = (xy[0]*path_scale, xy[1]*path_scale)
-        box = (xy[0] - 4, xy[1] - 4, xy[0] + 4, xy[1] + 4)
-        #v = (args.iterations - endpoints[p][1]) * 255 / args.iterations
-        v = endpoints[p][0] * 255 / max_count
-        color = (v, v, v)
-        draw.ellipse(box, outline=(0, 128, 128), fill=color)
+        for p in endpoints:
+            xy = (p[0]-min_x, p[1]-min_y)
+            xy = (xy[0]*path_scale, xy[1]*path_scale)
+            box = (xy[0] - 4, xy[1] - 4, xy[0] + 4, xy[1] + 4)
+            #v = (args.iterations - endpoints[p][1]) * 255 / args.iterations
+            v = endpoints[p][0] * 255 / max_count
+            color = (v, v, v)
+            draw.ellipse(box, outline=(0, 128, 128), fill=color)
 
-    origin = ( (0-min_x)*path_scale, (0-min_y)*path_scale )
-    draw.ellipse((origin[0] - 4, origin[1] - 4, origin[0] + 4, origin[1] + 4),
-        outline=(0, 128, 128), fill=(0, 255, 0))
+        origin = ( (0-min_x)*path_scale, (0-min_y)*path_scale )
+        draw.ellipse((origin[0] - 4, origin[1] - 4,
+                      origin[0] + 4,
+                      origin[1] + 4),
+            outline=(0, 128, 128), fill=(0, 255, 0))
 
-    path_im.save("%s_path.png"%(args.outfile), "PNG")
+        path_im.save("%s_path.png"%(args.outfile), "PNG")
 
 if __name__ == '__main__':
     main()
