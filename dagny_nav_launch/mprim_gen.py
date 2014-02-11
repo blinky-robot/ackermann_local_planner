@@ -18,6 +18,47 @@ def normalize(angle, max_angle):
         angle = angle + max_angle
     return angle
 
+def index_angle(angle, num_angles):
+    print angle / math.pi
+    # Assuming angles are evenly distributed
+    num = round( angle * num_angles / ( math.pi * 2 ))
+    print num
+    # Assuming angles snap to the nearest endpoint
+    #  assume num_angles = 16
+    s = math.sin(angle)
+    c = math.cos(angle)
+    if abs(s) > abs(c):
+        # normalize sine(y) to 1
+        if s == 0:
+            norm = 1.0
+        else:
+            norm = abs(1.0 / s)
+        x = round(norm * c * (num_angles / 8)) / (num_angles / 8)
+        if s > 0:
+            y = 1
+        elif s < 0:
+            y = -1
+        else:
+            y = 0
+    else:
+        # normalize cos(x) to 1
+        if c == 0:
+            norm = 1.0
+        else:
+            norm = abs(1.0 / c)
+        y = round(norm * s * (num_angles / 8)) / (num_angles / 8)
+        if c > 0:
+            x = 1
+        elif c < 0:
+            x = -1
+        else:
+            x = 0
+    print x, y
+    print
+
+def round_angle(angle, num_angles):
+    pass
+
 # mirror about the X axis
 def mirror_x(p, max_angle):
     return (p[0], -p[1], normalize(-p[2], max_angle))
@@ -380,4 +421,7 @@ def main():
         mprim.write_mprim(args.output, traj, args.resolution)
 
 if __name__ == '__main__':
+    # simple test for index_angle
+    #for angle in numpy.arange(0, math.pi*2, math.pi / 64 ):
+    #    index_angle(angle, 16)
     main()
