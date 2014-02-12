@@ -27,7 +27,7 @@ def norm_angle(angle, num_angles):
     if ANGLE_TYPE == EQUAL_ANGLES:
         # Assuming angles are evenly distributed
         n1 = angle * num_angles / ( math.pi * 2 )
-        n1 = normalize(n1, num_angles)
+        #n1 = normalize(n1, num_angles)
         return n1
     elif ANGLE_TYPE == GRID_ANGLES:
         # Assuming angles snap to the nearest endpoint
@@ -134,6 +134,9 @@ def angle_from_index(i, num_angles):
     if ANGLE_TYPE == EQUAL_ANGLES:
         return i * math.pi * 2 / num_angles
     elif ANGLE_TYPE == GRID_ANGLES:
+        # doesn't work yet. just explode
+        # TODO: implement
+        assert(False)
         return math.pi
     else:
         # neither angle type. die
@@ -195,7 +198,7 @@ def index(p, num_angles):
     """ Get the index numers for a given point """
     x = int(round(p[0]))
     y = int(round(p[1]))
-    t = int(round_angle(p[2], num_angles))
+    t = index_angle(p[2], num_angles)
     return (x, y, t)
 
 def trajectory_to_mprim(start, end, trajectory, num_poses, num_angles):
@@ -244,9 +247,8 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
         e1 = (p[0] - target[0])*(p[0] - target[0])
         e2 = (p[1] - target[1])*(p[1] - target[1])
         # theta error to nearest angle
-        #  TODO: write a function for this angle normalization
-        angle = p[2] * num_angles / (math.pi * 2)
-        target_angle = target[2] * num_angles / (math.pi * 2)
+        angle = norm_angle(p[2], num_angles)
+        target_angle = norm_angle(target[2], num_angles)
         e3 = (angle - target_angle)*(angle - target_angle)
         return e1, e2, e3
 
@@ -259,9 +261,8 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
             e1 = 0
         e2 = (p[1] - target[1])*(p[1] - target[1])
         # theta error to nearest angle
-        #  TODO: write a function for this angle normalization
-        angle = p[2] * num_angles / (math.pi * 2)
-        target_angle = target[2] * num_angles / (math.pi * 2)
+        angle = norm_angle(p[2], num_angles)
+        target_angle = norm_angle(target[2], num_angles)
         e3 = (angle - target_angle)*(angle - target_angle)
         return e1, e2, e3
 
@@ -271,11 +272,10 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
         e1 = abs(p[0] - round(p[0]))
         e2 = abs(p[1] - round(p[1]))
         # theta error to nearest angle
-        #  TODO: write a function for this angle normalization
-        angle = p[2] * num_angles / (math.pi * 2)
+        angle = norm_angle(p[2], num_angles)
         e3 = abs(angle - round(angle))
         if e1 < tolerance and e2 < tolerance and e3 < tolerance:
-            return (round(p[0]), round(p[1]), round_angle(p[2]), p[3])
+            return (round(p[0]), round(p[1]), round_angle(p[2], num_angles), p[3])
         else:
             return None
 
@@ -307,6 +307,9 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
 
     reachable = {}
 
+    l1 = []
+    w = []
+    l2 = []
     for start_angle in primitives:
         # TODO: write a function to go from index to angle
         start = (0, 0, 2 * math.pi * start_angle / num_angles , 0)
@@ -370,10 +373,13 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
                 #print "Found", start, end
                 #print args
                 if len(args) == 3:
-                    l1 = args[0] / hypotenuse
-                    w = args[1]
-                    l2 = args[2] / hypotenuse
-                    print l1, w, l2
+                    l1.append(args[0] / hypotenuse)
+                    w.append(args[1])
+                    l2.append(args[2] / hypotenuse)
+
+    print min(l1), min(w), min(l2)
+    print sum(l1)/len(l1), sum(w)/len(w), sum(l2)/len(l2)
+    print max(l1), max(w), max(l2)
 
     return reachable
 
