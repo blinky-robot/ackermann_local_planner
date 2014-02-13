@@ -169,6 +169,7 @@ def expand_trajectories(traj, num_angles):
             traj_0.append(m)
     traj[0] = traj_0
 
+    # TODO: don't hardcode angles here
     # mirror angle 2 trajectories about x=y
     traj_2 = list(traj[2])
     for t in traj[2]:
@@ -177,6 +178,7 @@ def expand_trajectories(traj, num_angles):
             traj_2.append(m)
     traj[2] = traj_2
 
+    # TODO: don't hardcode angles here
     # mirror angle 1 primitives about x=y
     traj[3] = []
     for t in traj[1]:
@@ -185,12 +187,13 @@ def expand_trajectories(traj, num_angles):
         if m:
             traj[3].append(m)
 
+    # TODO: don't hardcode angles here
     # rotate and mirror primitives about the origin
     traj[4] = [ m.transform(mirror_xy, num_angles) for m in traj[0] ]
-    for i in [ 5, 6, 7, 8 ]:
+    for i in range(num_angles/4 + 1, num_angles/2 + 1):
         traj[i] = [ m.transform(mirror_y, num_angles) for m in
                     traj[num_angles/2 - i] ]
-    for i in range(9,16):
+    for i in range(num_angles/2 + 1, num_angles):
         traj[i] = [ m.transform(mirror_x, num_angles) for m in
                     traj[num_angles - i] ]
 
