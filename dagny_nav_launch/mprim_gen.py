@@ -24,6 +24,9 @@ GRID_ANGLES = 2
 ANGLE_TYPE = GRID_ANGLES
 
 def norm_angle(angle, num_angles):
+    """
+    normalize the given angle to the floating-point range: 0.0 to num_angles
+    """
     if ANGLE_TYPE == EQUAL_ANGLES:
         # Assuming angles are evenly distributed
         n1 = angle * num_angles / ( math.pi * 2 )
@@ -79,11 +82,13 @@ def norm_angle(angle, num_angles):
         assert(False)
 
 def index_angle(angle, num_angles):
+    """ get the nearest index for a given angle """
     n1 = round(norm_angle(angle, num_angles))
     n1 = normalize(n1, num_angles)
-    return n1
+    return int(n1)
 
 def round_angle(angle, num_angles):
+    """ round an angle to the nearest lattice angle """
     if ANGLE_TYPE == EQUAL_ANGLES:
         # Assuming angles are evenly distributed
         n1 = round( angle * num_angles / ( math.pi * 2 ))
@@ -166,7 +171,7 @@ def angle_from_index(i, num_angles):
             x = 1.0
             y = float(step) / (num_angles/8)
         else:
-            print base
+            print i, ia, base
             assert(False)
         angle = normalize(math.atan2(y, x), 2 * math.pi)
         if i > 0:
