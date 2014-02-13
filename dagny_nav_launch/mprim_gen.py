@@ -174,7 +174,7 @@ def angle_from_index(i, num_angles):
             print i, ia, base
             assert(False)
         angle = normalize(math.atan2(y, x), 2 * math.pi)
-        if i > 0:
+        if i >= 0:
             return angle
         else:
             return angle - (2 * math.pi)
@@ -354,18 +354,15 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
     w = []
     l2 = []
     for start_angle in primitives:
-        # TODO: write a function to go from index to angle
         start = (0, 0, angle_from_index(start_angle, num_angles), 0)
         for end_pose in primitives[start_angle]:
             end_angle = start_angle + end_pose[2]
-            # TODO: write a function to go from index to angle
             end = (end_pose[0], end_pose[1], angle_from_index(end_angle,
                     num_angles), 0)
 
             # Normalize to starting angle 0,
             #  then optimize for delta-y and delta-theta
             #  then add a linear section to match the desired delta-x
-            # TODO: write a function to go from index to angle
             d_theta = angle_from_index(end_pose[2], num_angles)
             hypotenuse = math.sqrt( end_pose[0]*end_pose[0] +
                                     end_pose[1]*end_pose[1] )
