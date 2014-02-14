@@ -1,10 +1,12 @@
 #!/usr/bin/python
 
 import sys
+import math
 import mprim
 import argparse
 from PIL import Image, ImageDraw
 from dubins import sample_dubins_path as dubin
+from angles import *
 
 def sum(a, b):
     endangle = b[2]
@@ -36,6 +38,8 @@ def main():
 
     primitives = mprim.read_mprim(args.file)
 
+    # The space is currently the number of steps and total path length to a
+    # point
     space = {(0,0,args.start): (0, 0)}
     if args.all:
         for i in range(16):
@@ -78,7 +82,7 @@ def main():
                         for q in p.poses]
                     paths.append(path)
                     if not end in space:
-                        new_space[end] = (i+1, 0)
+                        new_space[end] = (i+1, space[start][1] + p.length())
 
         for s in new_space:
             space[s] = new_space[s]
@@ -144,9 +148,22 @@ def main():
     # Evaluate the efficiency of the lattice primitives by comparing them
     # to Dubin's path
     for p in space:
-        pass
-
-
+        print "Length to", p, "is", space[p][1]
+        # Compute dubin's path to P with minimum radius 6
+        end = (p[0], p[1], angle_from_index(p[2], 16))
+        d = dubin((0,0,0), end, 6.0, 0.1)
+        # sum length of Dubin's path
+        l = 0
+        a = (0,0,0)
+        for b in d[0]:
+            dx = b[0] - a[0]
+            dy = b[1] - a[1]
+            l += math.sqrt(dx*dx + dy*dy)
+            a = b
+        dx = p[0] - a[0]
+        dy = p[1] - a[1]
+        l += math.sqrt(dx*dx + dy*dy)
+        print "Dubins length to", p, "is", l
 
     if args.grids:
         # reachability grids represent the number of iterations required to
