@@ -51,8 +51,8 @@ intermediateposes: %d
             dy = b[1] - a[1]
             l += math.sqrt(dx*dx + dy*dy)
             a = b
-        dx = end[0] - a[0]
-        dy = end[0] - a[0]
+        dx = self.end[0] - a[0]
+        dy = self.end[0] - a[0]
         l += math.sqrt(dx*dx + dy*dy)
         return l
 
