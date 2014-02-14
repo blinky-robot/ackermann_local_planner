@@ -4,6 +4,7 @@ import sys
 import mprim
 import argparse
 from PIL import Image, ImageDraw
+from dubins import sample_dubins_path as dubin
 
 def sum(a, b):
     endangle = b[2]
@@ -35,10 +36,10 @@ def main():
 
     primitives = mprim.read_mprim(args.file)
 
-    space = {(0,0,args.start): 0}
+    space = {(0,0,args.start): (0, 0)}
     if args.all:
         for i in range(16):
-            space[(0, 0, i)] = 0
+            space[(0, 0, i)] = (0, 0)
 
     min_x = 0
     max_x = 0
@@ -57,7 +58,7 @@ def main():
     for i in range(args.iterations):
         new_space = {}
         for start in space:
-            if space[start] == i:
+            if space[start][0] == i:
                 for p in primitives[start[2]]:
                     end = sum(start, p.end)
 
@@ -77,7 +78,7 @@ def main():
                         for q in p.poses]
                     paths.append(path)
                     if not end in space:
-                        new_space[end] = i+1
+                        new_space[end] = (i+1, 0)
 
         for s in new_space:
             space[s] = new_space[s]
@@ -110,7 +111,7 @@ def main():
     min_count = 1000 # fixme
 
     for p in space:
-        value = space[p]
+        value = space[p][0]
         xy = (p[0], p[1])
         count = 1
         if xy in endpoints:
@@ -138,6 +139,13 @@ def main():
         print "%d angles reachable at %d points" % ( count,
                                                      coverage_count[count] )
 
+    # Idea for metric: distance to travel to reach a point vs linear distance
+    #  vs dubin's path?
+    # Evaluate the efficiency of the lattice primitives by comparing them
+    # to Dubin's path
+    #for p in space:
+
+
 
     if args.grids:
         # reachability grids represent the number of iterations required to
@@ -151,7 +159,7 @@ def main():
         for p in space:
             xy = (p[0]-min_x, p[1]-min_y)
             color = im[p[2]].getpixel(xy)
-            v = space[p] * 255 / args.iterations
+            v = space[p][0] * 255 / args.iterations
             color = (v, v, v)
             im[p[2]].putpixel(xy, color)
 

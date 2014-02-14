@@ -12,9 +12,18 @@ from primitives import *
 from pylab import *
 
 def normalize(angle, max_angle):
+    """ normalize an angle to the range 0 to max_angle """
     while angle >= max_angle:
         angle = angle - max_angle 
     while angle < 0:
+        angle = angle + max_angle
+    return angle
+
+def norm_0(angle, max_angle):
+    """ normalize an angle to the range -max_angle/2 to max_angle/2 """
+    while angle >= max_angle/2:
+        angle = angle - max_angle 
+    while angle < -max_angle/2:
         angle = angle + max_angle
     return angle
 
@@ -292,6 +301,9 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
         # theta error to nearest angle
         angle = norm_angle(p[2], num_angles)
         target_angle = norm_angle(target[2], num_angles)
+        angle_err = angle - target_angle
+        if abs(angle_err) > 4:
+            print "WARNING: high angle error", angle_err
         e3 = (angle - target_angle)*(angle - target_angle)
         return e1, e2, e3
 
@@ -306,7 +318,10 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
         # theta error to nearest angle
         angle = norm_angle(p[2], num_angles)
         target_angle = norm_angle(target[2], num_angles)
-        e3 = (angle - target_angle)*(angle - target_angle)
+        angle_err = norm_0(angle - target_angle, num_angles)
+        if abs(angle_err) > 8:
+            print "WARNING: high angle error", angle_err
+        e3 = angle_err * angle_err
         return e1, e2, e3
 
     # is a point on our planning lattice?
@@ -408,7 +423,7 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
                 s1 = Linear(start, remaining_x)
                 s2 = t(s1.get_end(), *args)
                 segment = Compound(s1, s2)
-                #print "Ending score", score(segment.get_end(), end)
+                print "Ending score", score(segment.get_end(), end)
                 reachable[(start, end)] = segment
                 #print "Found", start, end
                 #print args
@@ -475,7 +490,8 @@ def main():
     if primitives:
         found = {}
         for i in traj:
-            found[i] = [ [t.end[0], t.end[1], t.end[2] - i] for t in traj[i] ]
+            found[i] = [ [t.end[0], t.end[1], 
+                norm_0(t.end[2] - i, num_angles)] for t in traj[i] ]
         for i in primitives:
             for p in primitives[i]:
                 if not p in found[i]:
@@ -485,8 +501,8 @@ def main():
     if args.dump_yaml:
         primitives = {}
         for i in traj:
-            primitives[i] = [ [p.end[0], p.end[1], p.end[2] - i] for p in
-                              traj[i] ]
+            primitives[i] = [ [p.end[0], p.end[1], 
+                norm_0(p.end[2] - i, num_angles)] for p in traj[i] ]
         print primitives
         config = { 'primitives': primitives,
                    'seed': seed,
