@@ -3,11 +3,12 @@
 import math
 
 class MPrim():
-    def __init__(self, start, end, poses, cost=1):
+    def __init__(self, start, end, poses, cost=1, resolution=1.0):
         self.start = start
         self.end = end
         self.poses = poses
         self.cost = cost
+        self.resolution = resolution
 
     def __str__(self):
         return """MPrim:
@@ -79,7 +80,8 @@ def read_mprim(file):
                 pose = (float(line[0])/resolution, float(line[1])/resolution,
                         float(line[2]))
                 poses.append(pose)
-            primitives[startangle].append(MPrim((0, 0, startangle), endpose, poses, cost))
+            primitives[startangle].append(MPrim((0, 0, startangle), endpose,
+                                                poses, cost, resolution))
     return primitives
 
 def write_mprim(file, primitives, res):
