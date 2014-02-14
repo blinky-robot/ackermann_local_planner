@@ -143,7 +143,8 @@ def main():
     #  vs dubin's path?
     # Evaluate the efficiency of the lattice primitives by comparing them
     # to Dubin's path
-    #for p in space:
+    for p in space:
+        pass
 
 
 

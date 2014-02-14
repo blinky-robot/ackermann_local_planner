@@ -42,6 +42,20 @@ intermediateposes: %d
             poses.append(transform(pose, math.pi * 2))
         return MPrim(start, end, poses, cost)
 
+    def length(self):
+        """ Compute the length of this motion primitive """
+        a = self.start
+        l = 0
+        for b in self.poses:
+            dx = b[0] - a[0]
+            dy = b[1] - a[1]
+            l += math.sqrt(dx*dx + dy*dy)
+            a = b
+        dx = end[0] - a[0]
+        dy = end[0] - a[0]
+        l += math.sqrt(dx*dx + dy*dy)
+        return l
+
 def read_int(f):
     return int(f.readline().split()[1])
 
