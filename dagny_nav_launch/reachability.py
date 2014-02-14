@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw
 from dubins import sample_dubins_path as dubin
 from angles import *
 
-def sum(a, b):
+def sum_pose(a, b):
     endangle = b[2]
     if endangle < 0:
         endangle += 16
@@ -64,7 +64,7 @@ def main():
         for start in space:
             if space[start][0] == i:
                 for p in primitives[start[2]]:
-                    end = sum(start, p.end)
+                    end = sum_pose(start, p.end)
 
                     if args.range > 0:
                         if abs(end[0]) > args.range:
@@ -147,8 +147,8 @@ def main():
     #  vs dubin's path?
     # Evaluate the efficiency of the lattice primitives by comparing them
     # to Dubin's path
+    d_ratios = []
     for p in space:
-        print "Length to", p, "is", space[p][1]
         # Compute dubin's path to P with minimum radius 6
         end = (p[0], p[1], angle_from_index(p[2], 16))
         d = dubin((0,0,0), end, 6.0, 0.1)
@@ -163,7 +163,14 @@ def main():
         dx = p[0] - a[0]
         dy = p[1] - a[1]
         l += math.sqrt(dx*dx + dy*dy)
-        print "Dubins length to", p, "is", l
+        #print "Length to", p, "is", space[p][1]
+        #print "Dubins length to", p, "is", l
+        if space[p][1] != 0:
+            d_ratios.append(l / space[p][1])
+    # this is flawed because our motion primitives allow us to move backwards,
+    # which can result in a SHORTER path than Dubins. This tends to throw off
+    # the metric a little
+    print "Dubins path score", (sum(d_ratios) / len(d_ratios))
 
     if args.grids:
         # reachability grids represent the number of iterations required to
