@@ -10,7 +10,7 @@ import scipy.optimize
 from primitives import *
 from angles import *
 
-from pylab import *
+from pylab import plot,axes,show
 
 
 # mirror about the X axis
