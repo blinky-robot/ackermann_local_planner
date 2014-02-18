@@ -63,9 +63,10 @@ def find_redundancies(trajectories, primitives):
                         open_set.add(end)
                     else:
                         if 1 == space[end] and not end in redundant[start[2]]:
-                            prim = (end[0], end[1], end[2] - start[2])
-                            print "%d: %s is redundant" % ( start[2], prim )
-                            redundant[start[2]].add(end)
+                            prim = [end[0], end[1], end[2] - start[2]]
+                            if prim in primitives[start[2]]:
+                                print "%d: %s is redundant" % ( start[2], prim )
+                                redundant[start[2]].add(end)
     return redundant
 
 def expand_trajectories(traj, num_angles):
