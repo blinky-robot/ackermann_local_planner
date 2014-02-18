@@ -50,6 +50,8 @@ def main():
 
     args = parser.parse_args()
 
+    # TODO: read num_angles from file
+    num_angles = 16
     primitives = mprim.read_mprim(args.file)
 
     # The space is currently the number of steps and total path length to a
@@ -70,7 +72,7 @@ def main():
         if args.range == 0:
             print "ERROR: must specify range or iterations"
             sys.exit(1)
-        args.iterations = args.range * 2
+        #args.iterations = args.range * 2
 
     old_len = len(space)
     for i in range(args.iterations):
@@ -80,11 +82,11 @@ def main():
                 for p in primitives[start[2]]:
                     end = sum_pose(start, p.end)
 
-                    if args.range > 0:
-                        if abs(end[0]) > args.range:
-                            continue
-                        if abs(end[1]) > args.range:
-                            continue
+#                    if args.range > 0:
+#                        if abs(end[0]) > args.range:
+#                            continue
+#                        if abs(end[1]) > args.range:
+#                            continue
 
                     min_x = min(min_x, end[0])
                     max_x = max(max_x, end[0])
@@ -104,6 +106,13 @@ def main():
             print "Didn't find any new points after %d iterations. Done!" % i
             break
         old_len = len(space)
+
+
+    if args.range > 0:
+        min_x = max(min_x, -args.range)
+        max_x = min(max_x,  args.range)
+        min_y = max(min_y, -args.range)
+        max_y = min(max_y,  args.range)
 
     print "Found %d final poses"%(len(space))
     print
@@ -168,7 +177,10 @@ def main():
     # Evaluate the efficiency of the lattice primitives by comparing them
     # to Dubin's path
     d_ratios = []
-    for p in space:
+    #for p in space:
+    for p in [ (x, y, t) for x in range(min_x, max_x+1) 
+              for y in range(min_y, max_y+1)
+              for t in range(num_angles) ]:
         # Compute dubin's path to P with minimum radius 6
         end = (p[0], p[1], angle_from_index(p[2], 16))
         d = dubin((0,0,0), end, 6.0, 0.1)
@@ -185,11 +197,19 @@ def main():
         l += math.sqrt(dx*dx + dy*dy)
         #print "Length to", p, "is", space[p][1]
         #print "Dubins length to", p, "is", l
-        if space[p][1] != 0:
-            d_ratios.append(l / space[p][1])
+        if p in space:
+            if space[p][1] != 0:
+                d_ratios.append(l / space[p][1])
+        else:
+            # we get a score of 0 for missing a goal state
+            d_ratios.append(0.0)
     # this is flawed because our motion primitives allow us to move backwards,
     # which can result in a SHORTER path than Dubins. This tends to throw off
     # the metric a little
+    #  - for now, simply don't include reverse paths when analyzing primitives
+    # A perfect score would be 1.0; lesser scores indicate how suboptimal our
+    #  set of motion primitives is
+    # the score is: optimality * coverage
     print "Dubins path score", (sum(d_ratios) / len(d_ratios))
 
     if args.grids:
@@ -235,9 +255,13 @@ def main():
             xy = (xy[0]*path_scale, xy[1]*path_scale)
             box = (xy[0] - 4, xy[1] - 4, xy[0] + 4, xy[1] + 4)
             #v = (args.iterations - endpoints[p][1]) * 255 / args.iterations
-            v = endpoints[p][0] * 255 / max_count
-            color = (v, v, v)
-            color = green_red(float(endpoints[p][0]) / max_count )
+            #v = endpoints[p][0] * 255 / max_count
+            #color = (v, v, v)
+            if max_count - min_count == 0:
+                color = green_red(1.0)
+            else:
+                color = green_red(float(endpoints[p][0] - min_count) / 
+                                  (max_count - min_count) )
             draw.ellipse(box, outline=(0, 128, 128), fill=color)
 
         origin = ( (0-min_x)*path_scale, (0-min_y)*path_scale )
