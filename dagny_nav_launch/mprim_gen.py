@@ -29,6 +29,46 @@ def mirror_xy(p, max_angle):
 def mirror_x_y(p, max_angle):
     return (-p[1], -p[0], p[2])
 
+# get redundant primitives
+def find_redundancies(trajectories, primitives):
+    # primitives is a map of (start_angle -> [MPrim, ... ])
+    # primitives are the primitives input by the user
+    #  a map of (start_angle -> [(x, y, d_theta), ...])
+
+    # find the limits where we expect to look for redundancies.
+    #  any paths that land outside this space will be pruned
+    start_space = set()
+    limits = [0, 0, primitives[0][0][0], primitives[0][0][1]]
+    for start in primitives:
+        start_space.add((0,0,start,))
+        for p in primitives[start]:
+            limits[2] = max(p[0], limits[0])
+            limits[3] = max(p[1], limits[1])
+
+    # build up our reachability space
+    redundant = {}
+    for start in start_space:
+        space = {start: 0}
+        redundant[start[2]] = set()
+
+        open_set = set(space.keys())
+        while len(open_set) > 0:
+            pose = open_set.pop()
+            for t in trajectories[pose[2]]:
+                end = ( pose[0] + t.end[0], pose[1] + t.end[1], t.end[2] )
+                if end[0] >= limits[0] and end[1] >= limits[1] and \
+                        end[0] <= limits[2] and end[1] <= limits[3]:
+                    if not end in space:
+                        space[end] = space[pose] + 1
+                        #print end, "added to state space", space[end]
+                        open_set.add(end)
+                    else:
+                        #print end, "is already in the state space:", space[end]
+                        if 1 == space[end] and not end in redundant[start[2]]:
+                            print "%d: %s is redundant" % ( start[2], end )
+                            redundant[start[2]].add(end)
+    return redundant
+
 def expand_trajectories(traj, num_angles):
     # mirror angle 0 primitives about X
     traj_0 = list(traj[0])
@@ -319,11 +359,12 @@ def main():
                     print "Failed to find solution for primitive %d -> %s" % \
                             ( i, str(p) )
 
+    primitives = {}
+    for i in traj:
+        primitives[i] = [ [p.end[0], p.end[1], 
+            norm_0(p.end[2] - i, num_angles)] for p in traj[i] ]
+
     if args.dump_yaml:
-        primitives = {}
-        for i in traj:
-            primitives[i] = [ [p.end[0], p.end[1], 
-                norm_0(p.end[2] - i, num_angles)] for p in traj[i] ]
         print primitives
         config = { 'primitives': primitives,
                    'seed': seed,
@@ -334,6 +375,8 @@ def main():
         return
 
     expand_trajectories(traj, num_angles)
+
+    find_redundancies(traj, primitives)
     
     total = sum(len(traj[t]) for t in traj)
     max_branch = max(len(traj[t]) for t in traj)
