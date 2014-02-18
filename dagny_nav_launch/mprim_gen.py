@@ -42,8 +42,8 @@ def find_redundancies(trajectories, primitives):
     for start in primitives:
         start_space.add((0,0,start,))
         for p in primitives[start]:
-            limits[2] = max(p[0], limits[0])
-            limits[3] = max(p[1], limits[1])
+            limits[2] = max(p[0], limits[2])
+            limits[3] = max(p[1], limits[3])
 
     # build up our reachability space
     redundant = {}
@@ -63,7 +63,8 @@ def find_redundancies(trajectories, primitives):
                         open_set.add(end)
                     else:
                         if 1 == space[end] and not end in redundant[start[2]]:
-                            print "%d: %s is redundant" % ( start[2], end )
+                            prim = (end[0], end[1], end[2] - start[2])
+                            print "%d: %s is redundant" % ( start[2], prim )
                             redundant[start[2]].add(end)
     return redundant
 
