@@ -60,10 +60,8 @@ def find_redundancies(trajectories, primitives):
                         end[0] <= limits[2] and end[1] <= limits[3]:
                     if not end in space:
                         space[end] = space[pose] + 1
-                        #print end, "added to state space", space[end]
                         open_set.add(end)
                     else:
-                        #print end, "is already in the state space:", space[end]
                         if 1 == space[end] and not end in redundant[start[2]]:
                             print "%d: %s is redundant" % ( start[2], end )
                             redundant[start[2]].add(end)
@@ -125,6 +123,7 @@ def trajectory_to_mprim(start, end, trajectory, num_poses, num_angles):
 def generate_trajectories(min_radius, num_angles, primitives, seed):
     tolerance = 0.01 # tolerance for matching to the grid
     print "Minimum radius", min_radius
+    print "Optimizing primitives..."
 
     def SAS(start, l1, w, l2):
         #w = 1 / (2 * l1 * radius )
@@ -284,7 +283,7 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
                 s1 = Linear(start, remaining_x)
                 s2 = t(s1.get_end(), *args)
                 segment = Compound(s1, s2)
-                print "Ending score", score(segment.get_end(), end)
+                #print "Ending score", score(segment.get_end(), end)
                 reachable[(start, end)] = segment
                 #print "Found", start, end
                 #print args
@@ -293,6 +292,7 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
                     w.append(args[1])
                     l2.append(args[2] / hypotenuse)
 
+    print "Average seed values:"
     print min(l1), min(w), min(l2)
     print sum(l1)/len(l1), sum(w)/len(w), sum(l2)/len(l2)
     print max(l1), max(w), max(l2)
