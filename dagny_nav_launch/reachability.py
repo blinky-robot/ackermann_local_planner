@@ -16,6 +16,20 @@ def sum_pose(a, b):
         endangle -= 16
     return (a[0]+b[0], a[1]+b[1], endangle)
 
+
+def green_red(v):
+    green = (0, 255, 0)
+    red = (255, 0, 0)
+    yellow = (255, 255, 0)
+    if v < 0.5:
+        g = v * 2
+        r = 1.0
+    else:
+        r = (1 - v) * 2
+        g = 1.0
+    return (int(255*r), int(255*g), 0)
+
+
 def main():
     parser = argparse.ArgumentParser("Reachability analysis for SBPL motion primitives")
     parser.add_argument("file", help="Motion primitive file")
@@ -122,21 +136,27 @@ def main():
             count = endpoints[xy][0] + 1
             value = min(value, endpoints[xy][1])
         endpoints[xy] = (count, value)
-        max_count = max(count, max_count)
-        min_count = min(count, min_count)
-        if not count in coverage_count:
-            coverage_count[count] = 0
-        coverage_count[count] += 1
+
+    for x in range(min_x, max_x+1):
+        for y in range(min_y, max_y+1):
+            xy = (x, y)
+            if xy in endpoints:
+                count = endpoints[xy][0]
+            else:
+                count = 0
+                endpoints[xy] = (0, -1)
+            max_count = max(count, max_count)
+            min_count = min(count, min_count)
+            if not count in coverage_count:
+                coverage_count[count] = 0
+            coverage_count[count] += 1
             
     print "Max count", max_count
+    print "Min count", min_count
 
     spaces = (width+1)*(height+1)
-    if len(endpoints) < spaces:
-        print "%d points are totally unreachable" % ( spaces - len(endpoints) )
-        coverage_count[0] = spaces - len(endpoints)
-    else:
-        coverage_count[0] = 0
-        print "Min count", min_count
+    if 0 in coverage_count and coverage_count[0] > 0:
+        print "%d points are totally unreachable" % ( coverage_count[0] )
 
     print "Coverage data:"
     for count in coverage_count:
@@ -217,6 +237,7 @@ def main():
             #v = (args.iterations - endpoints[p][1]) * 255 / args.iterations
             v = endpoints[p][0] * 255 / max_count
             color = (v, v, v)
+            color = green_red(float(endpoints[p][0]) / max_count )
             draw.ellipse(box, outline=(0, 128, 128), fill=color)
 
         origin = ( (0-min_x)*path_scale, (0-min_y)*path_scale )
