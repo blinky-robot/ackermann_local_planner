@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package>
+  <name>dagny_nav_launch</name>
+  <description>Navigation launch files for Dagny</description>
+  <version>0.0.0</version>
+
+  <url>http://ros.org/wiki/dagny_nav_launch</url>
+  <maintainer email="namniart@gmail.com">Austin Hendrix</maintainer>
+  <license>BSD</license>
+  <author email="namniart@gmail.com">Austin Hendrix</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <run_depend>amcl</run_depend>
+  <run_depend>gmapping</run_depend>
+  <run_depend>move_base</run_depend>
+  <run_depend>sbpl_lattice_planner</run_depend>
+</package>
