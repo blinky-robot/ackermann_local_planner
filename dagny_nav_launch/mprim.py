@@ -18,7 +18,7 @@ class MPrim():
 %s"""%(str(self.start), str(self.end), "\n".join(self.poses))
 
     def __repr__(self):
-        return "[MPrim: start: %s, end: %s]"%(str(self.start), str(self.end))
+        return "MPrim(start=%s, end=%s)"%(str(self.start), str(self.end))
 
     def outformat(self, res=0.1):
         s = """startangle_c: %d
