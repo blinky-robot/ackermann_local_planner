@@ -214,7 +214,7 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
         primitives = {}
         for start_angle in range(3):
             primitives[start_angle] = []
-            for x in range(8):
+            for x in range(int(min_radius * 1.5)):
                 for y in range(x+1):
                     if x ==0 and y == 0:
                         continue
@@ -306,9 +306,9 @@ def main():
     parser = argparse.ArgumentParser('Motion primitive generation')
     parser.add_argument('-o', '--output', 
                         help="Output file")
-    parser.add_argument('-r', '--resolution', default=0.1,
+    parser.add_argument('-r', '--resolution', default=0.1, type=float,
                         help="Primitive resolution (in meters)")
-    parser.add_argument('-m', '--min-radius', default=0.6,
+    parser.add_argument('-m', '--min-radius', default=0.6, type=float,
                         help="Minimum radius (in meters)")
     parser.add_argument('-p', '--plot', action="store_true",
                         help="Plot optimized trajectories")
