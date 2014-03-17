@@ -69,6 +69,30 @@ def find_redundancies(trajectories, primitives):
                                 redundant[start[2]].add(end)
     return redundant
 
+def eliminate_redundancies(traj, redundant):
+    print "Removing redundancies"
+    for start in redundant:
+        print "Start angle", start
+        space = redundant[start]
+        new_traj = []
+        for prim in traj[start]:
+            if isinstance(prim, mprim.MPrim):
+                if prim.end not in space:
+                    new_traj.append(prim)
+                else:
+                    print "Removed", prim.end
+            else:
+                prim_t = list(prim)
+                prim_t[2] += start
+                prim_t = tuple(prim_t)
+                if prim_t not in space:
+                    new_traj.append(prim)
+                else:
+                    print "Removed", prim_t
+        print "%d old trajectories" % ( len(traj[start]) )
+        print "%d new trajectories" % ( len(new_traj) )
+        traj[start] = new_traj
+
 def expand_trajectories(traj, num_angles):
     # mirror angle 0 primitives about X
     traj_0 = list(traj[0])
@@ -366,6 +390,13 @@ def main():
         primitives[i] = [ [p.end[0], p.end[1], 
             norm_0(p.end[2] - i, num_angles)] for p in traj[i] ]
 
+    expand_trajectories(traj, num_angles)
+
+    redundant = find_redundancies(traj, primitives)
+
+    eliminate_redundancies(traj, redundant)
+    eliminate_redundancies(primitives, redundant)
+    
     if args.dump_yaml:
         print primitives
         config = { 'primitives': primitives,
@@ -376,10 +407,6 @@ def main():
         print "Wrote config to %s" % ( args.dump_yaml )
         return
 
-    expand_trajectories(traj, num_angles)
-
-    find_redundancies(traj, primitives)
-    
     total = sum(len(traj[t]) for t in traj)
     max_branch = max(len(traj[t]) for t in traj)
     min_branch = min(len(traj[t]) for t in traj)
