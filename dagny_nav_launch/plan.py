@@ -22,16 +22,20 @@ def main():
             marker.header = msg.header
             marker.type = Marker.ARROW
             marker.pose = pose.pose
-            marker.pose.orientation.w = 1
+            o = marker.pose.orientation
+            if o.x == 0 and o.y == 0 and o.z == 0 and o.w == 0:
+                marker.pose.orientation.w = 1
             marker.id = marker_id
             marker.scale.x = 1
             marker.scale.y = 0.1
             marker.scale.z = 0.1
             marker.color.g = 1.0
             marker.color.a = 1.0
+            print marker
             pub.publish(marker)
 
     rospy.Subscriber('/move_base/SBPLLatticePlanner/plan', Path, path_sub)
+    rospy.Subscriber('/move_base/NavfnROS/plan', Path, path_sub)
 
     rospy.spin()
 
