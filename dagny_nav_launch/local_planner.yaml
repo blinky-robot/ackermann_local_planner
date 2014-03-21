@@ -38,10 +38,14 @@ AckermannPlannerROS:
 
    escape_vel: -0.10
 
-   sim_time: 3.0
+   sim_time: 0.5
    sim_granularity: 0.05
 
    vx_samples: 3
    radius_samples: 5
 
    penalize_negative_x: false
+
+   # debugging options
+   publish_traj_pc: true
+   publish_cost_grid_pc: true
