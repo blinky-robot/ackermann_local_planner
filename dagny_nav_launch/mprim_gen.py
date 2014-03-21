@@ -284,6 +284,9 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
                 mesg = "Avoid optimizer and use linear solution"
                 args = [ d_x ]
             else:
+                # better estimate for w?
+                #estimate[1] = 0.1 * (d_y/d_x)
+
                 if d_theta == 0:
                     # estimate with s-curve
                     f = scurve(normal_start, normal_end)
@@ -313,15 +316,16 @@ def generate_trajectories(min_radius, num_angles, primitives, seed):
                 reachable[(start, end)] = segment
                 #print "Found", start, end
                 #print args
-                if len(args) == 3:
+                if len(args) == 3 and d_theta == 0:
                     l1.append(args[0] / hypotenuse)
-                    w.append(args[1])
+                    w.append( args[1] / (d_x/d_y))
                     l2.append(args[2] / hypotenuse)
 
     print "Average seed values:"
-    print min(l1), min(w), min(l2)
+    print min(l1),         min(w),        min(l2)
     print sum(l1)/len(l1), sum(w)/len(w), sum(l2)/len(l2)
-    print max(l1), max(w), max(l2)
+    print max(l1),         max(w),        max(l2)
+    print max(l1)/min(l1), max(w)/min(w), max(l2)/min(l2)
 
     return reachable
 
@@ -340,6 +344,8 @@ def main():
                         help="YAML file to load configuration from")
     parser.add_argument('-d', '--dump-yaml',
                         help="File to dump generated YAML configuration to")
+    parser.add_argument('--prune', action='store_true', default=False,
+                        help="Prune redundant paths")
 
     args = parser.parse_args()
 
@@ -392,10 +398,11 @@ def main():
 
     expand_trajectories(traj, num_angles)
 
-    redundant = find_redundancies(traj, primitives)
+    if args.prune:
+        redundant = find_redundancies(traj, primitives)
 
-    eliminate_redundancies(traj, redundant)
-    eliminate_redundancies(primitives, redundant)
+        eliminate_redundancies(traj, redundant)
+        eliminate_redundancies(primitives, redundant)
     
     if args.dump_yaml:
         print primitives
