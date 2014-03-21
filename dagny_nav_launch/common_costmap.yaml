@@ -9,7 +9,7 @@ obstacle_layer:
       topic: /scan
       marking: true
       clearing: true
-      expected_update_rate: 10.0
+      expected_update_rate: 0.20
    obstacle_range: 2.5
    raytrace_range: 3.0
 
