@@ -32,7 +32,16 @@ add_library(ackermann_local_planner
   src/ackermann_planner_ros.cpp
   )
 add_dependencies(ackermann_local_planner
-  ${ackermann_local_planner_EXPORTED_TARGETS})
+  ${ackermann_local_planner_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ackermann_local_planner 
+  ${catkin_LIBRARIES}
+  )
 
-# TODO: install plugin XML
-# TODO: install library
+install(TARGETS ackermann_local_planner
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  )
+
+install(FILES blp_plugin.xml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  )

@@ -155,7 +155,7 @@ namespace ackermann_local_planner {
     oscillation_costs_.resetOscillationFlags();
 
     private_nh.param("publish_cost_grid_pc", publish_cost_grid_pc_, false);
-    map_viz_.initialize(name, boost::bind(&AckermannPlanner::getCellCosts, this, _1, _2, _3, _4, _5, _6));
+    map_viz_.initialize(name, planner_util->getGlobalFrame(), boost::bind(&AckermannPlanner::getCellCosts, this, _1, _2, _3, _4, _5, _6));
 
     std::string frame_id;
     private_nh.param("global_frame_id", frame_id, std::string("odom"));
