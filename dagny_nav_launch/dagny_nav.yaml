@@ -3,7 +3,9 @@ recovery_behaviors:  [{name: conservative_reset, type: clear_costmap_recovery/Cl
 planner_patience: 15.0
 clearing_rotation_allowed: false
 
-#base_local_planner: ackermann_local_planner/AckermannPlannerROS
+base_local_planner: ackermann_local_planner/AckermannPlannerROS
+#base_local_planner: dwa_local_planner/DWAPlannerROS
+#base_local_planner: base_local_planner/TrajectoryPlannerROS
 controller_frequency: 10.0
 
 SBPLLatticePlanner:

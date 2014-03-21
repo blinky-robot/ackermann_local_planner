@@ -1,10 +1,11 @@
 TrajectoryPlannerROS:
-   max_vel_x: 0.15
+   max_vel_x: 0.50
    min_vel_x: 0.15
-   max_rotational_vel: 0.3
-   min_in_place_rotational_vel: 1.0
+   max_vel_theta: 0.3
+   min_vel_theta: -0.3
+   min_in_place_vel_theta: 0.1
 
-   acc_lim_th: 4.0
+   acc_lim_theta: 4.0
    acc_lim_x: 0.5
    acc_lim_y: 0.5
 
@@ -12,21 +13,32 @@ TrajectoryPlannerROS:
 
    holonomic_robot: false
 
-   sim_time: 1.0
+   sim_time: 3.0
    sim_granularity: 0.05
-   vtheta_samples: 5
+   vtheta_samples: 10
    dwa: true
+   heading_lookahead: 1.0
+
+   pdist_scale: 0.6
+   gdist_scale: 0.4
+   occdist_scale: 0.01
+
+   xy_goal_tolerance: 0.25
+   yaw_goal_tolerance: 0.1
+
+   heading_scoring: true
+   heading_scoring_times: 0.1
 
 AckermannPlannerROS:
-   max_vel_x: 0.30
-   min_vel_x: 0.10
+   max_vel_x: 0.50
+   min_vel_x: 0.15
    min_radius: 0.7
 
-   acc_lim_x: 0.05
+   acc_lim_x: 0.10
 
    escape_vel: -0.10
 
-   sim_time: 0.5
+   sim_time: 3.0
    sim_granularity: 0.05
 
    vx_samples: 3
