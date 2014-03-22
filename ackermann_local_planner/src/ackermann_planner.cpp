@@ -165,6 +165,10 @@ namespace ackermann_local_planner {
     traj_cloud_pub_.advertise(private_nh, "trajectory_cloud", 1);
     private_nh.param("publish_traj_pc", publish_traj_pc_, false);
 
+    private_nh.param("publish_goal", publish_goal_, false);
+    goal_point_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>("goal_point", 1);
+    
+
     // set up all the cost functions that will be applied in order
     // (any function returning negative values will abort scoring, so the order can improve performance)
     std::vector<base_local_planner::TrajectoryCostFunction*> critics;
@@ -241,6 +245,8 @@ namespace ackermann_local_planner {
   void AckermannPlanner::updatePlanAndLocalCosts(
       tf::Stamped<tf::Pose> global_pose,
       const std::vector<geometry_msgs::PoseStamped>& new_plan) {
+
+    // copy the new plan into the global plan
     global_plan_.resize(new_plan.size());
     for (unsigned int i = 0; i < new_plan.size(); ++i) {
       global_plan_[i] = new_plan[i];
@@ -254,6 +260,10 @@ namespace ackermann_local_planner {
 
     // alignment costs
     geometry_msgs::PoseStamped goal_pose = global_plan_.back();
+
+    if(publish_goal_) {
+      goal_point_pub_.publish(goal_pose);
+    }
 
     Eigen::Vector3f pos(global_pose.getOrigin().getX(), global_pose.getOrigin().getY(), tf::getYaw(global_pose.getRotation()));
     double sq_dist =

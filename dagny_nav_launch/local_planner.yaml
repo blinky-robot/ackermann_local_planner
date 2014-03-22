@@ -49,3 +49,4 @@ AckermannPlannerROS:
    # debugging options
    publish_traj_pc: true
    publish_cost_grid_pc: true
+   publish_goal: true

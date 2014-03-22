@@ -179,6 +179,8 @@ namespace ackermann_local_planner {
 
       // TODO: added for ackermann local planner
       double min_vel_x_, max_vel_x_, min_radius_;
+      bool publish_goal_;
+      ros::Publisher goal_point_pub_;
   };
 };
 #endif
