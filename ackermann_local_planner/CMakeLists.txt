@@ -4,7 +4,6 @@ project(ackermann_local_planner)
 find_package(catkin REQUIRED COMPONENTS
   angles
   base_local_planner
-  cmake_modules
   costmap_2d
   dynamic_reconfigure
   nav_core
@@ -14,8 +13,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   )
 
-find_package(Eigen REQUIRED)
-
 generate_dynamic_reconfigure_options(
   cfg/AckermannPlanner.cfg
 )
@@ -23,12 +20,9 @@ generate_dynamic_reconfigure_options(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${Eigen_INCLUDE_DIRS}
   )
 
-add_definitions(${EIGEN_DEFINITIONS})
 add_library(ackermann_local_planner
-  src/ackermann_planner.cpp
   src/ackermann_planner_ros.cpp
   )
 add_dependencies(ackermann_local_planner

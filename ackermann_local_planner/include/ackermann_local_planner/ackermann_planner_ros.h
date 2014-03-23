@@ -2,7 +2,7 @@
 *
 * Software License Agreement (BSD License)
 *
-*  Copyright (c) 2009, Willow Garage, Inc.
+*  Copyright (c) 2014, Austin Hendrix
 *  All rights reserved.
 *
 *  Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *
-* Author: Eitan Marder-Eppstein
+* Author: Austin Hendrix
 *********************************************************************/
 #ifndef ACKERMANN_LOCAL_PLANNER_ACKERMANN_PLANNER_ROS_H_
 #define ACKERMANN_LOCAL_PLANNER_ACKERMANN_PLANNER_ROS_H_
@@ -55,8 +55,6 @@
 
 #include <base_local_planner/odometry_helper_ros.h>
 
-#include <ackermann_local_planner/ackermann_planner.h>
-
 namespace ackermann_local_planner {
   /**
    * @class AckermannPlannerROS
@@ -66,23 +64,23 @@ namespace ackermann_local_planner {
   class AckermannPlannerROS : public nav_core::BaseLocalPlanner {
     public:
       /**
-       * @brief  Constructor for AckermannPlannerROS wrapper
+       * @brief  Constructor for AckermannPlannerROS
        */
       AckermannPlannerROS();
 
       /**
-       * @brief  Constructs the ros wrapper
+       * @brief  Constructs the planner
        * @param name The name to give this instance of the trajectory planner
        * @param tf A pointer to a transform listener
        * @param costmap The cost map to use for assigning costs to trajectories
        */
-      void initialize(std::string name, tf::TransformListener* tf,
+      virtual void initialize(std::string name, tf::TransformListener* tf,
           costmap_2d::Costmap2DROS* costmap_ros);
 
       /**
-       * @brief  Destructor for the wrapper
+       * @brief  Destructor for the planner
        */
-      ~AckermannPlannerROS();
+      virtual ~AckermannPlannerROS();
 
       /**
        * @brief  Given the current position, orientation, and velocity of the robot,
@@ -90,37 +88,26 @@ namespace ackermann_local_planner {
        * @param cmd_vel Will be filled with the velocity command to be passed to the robot base
        * @return True if a valid trajectory was found, false otherwise
        */
-      bool computeVelocityCommands(geometry_msgs::Twist& cmd_vel);
-
-
-      /**
-       * @brief  Given the current position, orientation, and velocity of the robot,
-       * compute velocity commands to send to the base, using dynamic window approach
-       * @param cmd_vel Will be filled with the velocity command to be passed to the robot base
-       * @return True if a valid trajectory was found, false otherwise
-       */
-      bool ackermannComputeVelocityCommands(tf::Stamped<tf::Pose>& global_pose, geometry_msgs::Twist& cmd_vel);
+      virtual bool computeVelocityCommands(geometry_msgs::Twist& cmd_vel);
 
       /**
        * @brief  Set the plan that the controller is following
        * @param orig_global_plan The plan to pass to the controller
        * @return True if the plan was updated successfully, false otherwise
        */
-      bool setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan);
+      virtual bool setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan);
 
       /**
        * @brief  Check if the goal pose has been achieved
        * @return True if achieved, false otherwise
        */
-      bool isGoalReached();
+      virtual bool isGoalReached();
 
-
-
+    private:
       bool isInitialized() {
         return initialized_;
       }
 
-    private:
       /**
        * @brief Callback to update the local planner's parameters based on dynamic reconfigure
        */
@@ -130,6 +117,7 @@ namespace ackermann_local_planner {
 
       void publishGlobalPlan(std::vector<geometry_msgs::PoseStamped>& path);
 
+      // TODO(hendrix): shared pointer
       tf::TransformListener* tf_; ///< @brief Used for transforming point clouds
 
       // for visualisation, publishers of global and local plan
@@ -137,20 +125,15 @@ namespace ackermann_local_planner {
 
       base_local_planner::LocalPlannerUtil planner_util_;
 
-      boost::shared_ptr<AckermannPlanner> dp_; ///< @brief The trajectory controller
-
       costmap_2d::Costmap2DROS* costmap_ros_;
 
+      // TODO(hendrix): shared pointer
       dynamic_reconfigure::Server<AckermannPlannerConfig> *dsrv_;
       ackermann_local_planner::AckermannPlannerConfig default_config_;
       bool setup_;
       tf::Stamped<tf::Pose> current_pose_;
 
-      base_local_planner::LatchedStopRotateController latchedStopRotateController_;
-
-
       bool initialized_;
-
 
       base_local_planner::OdometryHelperRos odom_helper_;
       std::string odom_topic_;
