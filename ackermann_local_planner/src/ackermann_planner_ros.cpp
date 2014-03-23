@@ -114,7 +114,13 @@ namespace ackermann_local_planner {
       return false;
     }
     ROS_INFO("Got new plan");
-    plan_ = orig_global_plan;
+    // Transform global plan into local coordinate space
+    tf::Stamped<tf::Pose> pose;
+    costmap_ros_->getRobotPose(pose);
+    ROS_INFO_NAMED("ackermann_planner", "Transforming global plan into %s frame", costmap_ros_->getGlobalFrameID().c_str());
+    base_local_planner::transformGlobalPlan(*tf_, orig_global_plan, pose,
+        *costmap_ros_->getCostmap(), costmap_ros_->getGlobalFrameID(), plan_);
+
     last_plan_point_ = 0; // we're at the beginning of the plan
     return true; // TODO: figure out what the return value here means
   }
@@ -192,9 +198,9 @@ namespace ackermann_local_planner {
     for( int i=last_plan_point_; i<plan_.size(); i++ ) {
       double dist = base_local_planner::getGoalPositionDistance(current_pose,
           plan_[i].pose.position.x, plan_[i].pose.position.y);
-      double theta = base_local_planner::getGoalOrientationAngleDifference(
-          current_pose, tf::getYaw(plan_[i].pose.orientation));
-      double metric = dist + theta;
+      double theta = fabs(base_local_planner::getGoalOrientationAngleDifference(
+          current_pose, tf::getYaw(plan_[i].pose.orientation)));
+      double metric = dist + theta / 10.0;
       if( metric < best_metric ) {
         best_metric = metric;
         plan_point = i;
