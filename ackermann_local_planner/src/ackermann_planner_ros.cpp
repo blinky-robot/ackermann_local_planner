@@ -108,6 +108,7 @@ namespace ackermann_local_planner {
     }
     ROS_INFO("Got new plan");
     plan_ = orig_global_plan;
+    last_plan_point_ = 0; // we're at the beginning of the plan
     return true; // TODO: figure out what the return value here means
   }
 
@@ -138,7 +139,7 @@ namespace ackermann_local_planner {
     // Ideas and questions:
     //  - when do we give up and ask that the global planner re-plan?
     //  - Given the global plan, pick a point(s) somewhere forward along the
-    //    path, and compute the dubins/dubins++ path to reach them
+    //    path, and compute the dubins/dubins++/dubins-- path to reach them
     //    - repeat across various radii
     //    - repeat for various points across the possible locations of the robot
     //      - this is where we hook into AMCL's error estimate of our position
@@ -177,7 +178,52 @@ namespace ackermann_local_planner {
       costmap_ros_->getRobotPose(current_pose);
     }
 
-    // get the current plan
+    // get the nearest point on the global plan; both in angle space and
+    // linear space
+    int plan_point = last_plan_point_;
+    double best_metric = 1e10; // TODO(hendrix): double max
+    for( int i=last_plan_point_; i<plan_.size(); i++ ) {
+      double dist = base_local_planner::getGoalPositionDistance(current_pose,
+          plan_[i].pose.position.x, plan_[i].pose.position.y);
+      double theta = base_local_planner::getGoalOrientationAngleDifference(
+          current_pose, tf::getYaw(plan_[i].pose.orientation));
+      double metric = dist + theta;
+      if( metric < best_metric ) {
+        best_metric = metric;
+        plan_point = i;
+      }
+    }
+
+    if( abs(plan_point - last_plan_point_) > 20 ) {
+      ROS_WARN("Whoa! We moved a lot. Not sure we're still on the right part of the plan");
+    }
+
+    last_plan_point_ = plan_point;
+    geometry_msgs::PoseStamped plan_pose = plan_[plan_point];
+
+    // TODO: publish plan_point as "here"
+
+    if( plan_point < plan_.size() - 1 ) {
+      int i = plan_point + 1;
+      geometry_msgs::PoseStamped next_pose = plan_[i];
+      // get the direction (forward/backwards) on the plan
+      bool forward = isForwards(plan_pose, next_pose);
+
+      // get a point forward of where we are on the plan
+      double forward_dist = 0.0;
+      while( forward_dist < forward_point_distance_ &&
+          i < plan_.size() &&
+          isForwards(plan_pose, next_pose) == forward ) {
+      }
+
+      // TODO: publish 
+    } else {
+      // plan_point is the last point on the plan
+      // we're here?
+      //
+      // ????
+    }
+
 
     if( move_ ) {
       // TODO(hendrix)
@@ -187,5 +233,20 @@ namespace ackermann_local_planner {
     }
 
     return false;
+  }
+
+  bool isForwards(geometry_msgs::PoseStamped &start,
+      geometry_msgs::PoseStamped &end) {
+    return true; // TODO(hendrix): don't hardcode
+  }
+
+  inline double sq(double x) {
+    return x*x;
+  }
+
+  double dist(geometry_msgs::PoseStamped &start,
+      geometry_msgs::PoseStamped &end) {
+    return sqrt(sq(end.pose.position.x - start.pose.position.x) +
+                sq(end.pose.position.y - start.pose.position.y));
   }
 };

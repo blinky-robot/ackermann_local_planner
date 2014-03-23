@@ -150,6 +150,25 @@ namespace ackermann_local_planner {
       // configuration
       bool have_particlecloud_;
       bool have_pose_with_cow_;
+
+
+      // transient data
+      int last_plan_point_;
   };
+
+  // Helper functions that don't need class context
+
+  /**
+   * @brief determine if one point is forward or backwards from another
+   */
+  bool isForwards(geometry_msgs::PoseStamped &start,
+      geometry_msgs::PoseStamped &end);
+
+  /**
+   * @brief compute the distance between two points
+   */
+  double dist(geometry_msgs::PoseStamped &start,
+      geometry_msgs::PoseStamped &end);
+
 };
 #endif
