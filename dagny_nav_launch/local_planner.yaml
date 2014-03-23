@@ -30,23 +30,14 @@ TrajectoryPlannerROS:
    heading_scoring_times: 0.1
 
 AckermannPlannerROS:
-   max_vel_x: 0.50
-   min_vel_x: 0.15
+   max_vel: 0.50
+   min_vel: 0.15
    min_radius: 0.7
 
-   acc_lim_x: 0.10
+   acc_lim: 0.10
 
-   escape_vel: -0.10
+#   vx_samples: 3
+#   radius_samples: 5
 
-   sim_time: 0.5
-   sim_granularity: 0.05
-
-   vx_samples: 3
-   radius_samples: 5
-
-   penalize_negative_x: false
-
-   # debugging options
-   publish_traj_pc: true
-   publish_cost_grid_pc: true
    publish_goal: true
+   publish_near_point: true

@@ -117,6 +117,7 @@ namespace ackermann_local_planner {
       void reconfigureCB(AckermannPlannerConfig &config, uint32_t level);
 
       void publishLocalPlan(std::vector<geometry_msgs::PoseStamped>& path);
+      void publishGlobalPlan(std::vector<geometry_msgs::PoseStamped>& path);
 
       tf::TransformListener* tf_; ///< @brief Used for transforming point clouds
 
@@ -151,6 +152,11 @@ namespace ackermann_local_planner {
       bool have_particlecloud_;
       bool have_pose_with_cow_;
 
+
+      bool publish_goal_;
+      bool publish_near_point_;
+      ros::Publisher goal_pub_;
+      ros::Publisher near_point_pub_;
 
       // transient data
       int last_plan_point_;

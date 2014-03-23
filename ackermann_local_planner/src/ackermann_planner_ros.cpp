@@ -80,6 +80,7 @@ namespace ackermann_local_planner {
 
       ros::NodeHandle private_nh("~/" + name);
       l_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
+      g_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
       tf_ = tf;
       costmap_ros_ = costmap_ros;
 
@@ -89,6 +90,12 @@ namespace ackermann_local_planner {
       std::string odom_topic;
       private_nh.param<std::string>("odom_topic", odom_topic, "odom");
       odom_helper_.setOdomTopic( odom_topic );
+
+      private_nh.param<bool>("publish_goal", publish_goal_, false);
+      goal_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>("goal", 1);
+      private_nh.param<bool>("publish_near_point", publish_near_point_, false);
+      near_point_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>(
+          "near_point", 1);
       
       initialized_ = true;
 
@@ -201,7 +208,10 @@ namespace ackermann_local_planner {
     last_plan_point_ = plan_point;
     geometry_msgs::PoseStamped plan_pose = plan_[plan_point];
 
-    // TODO: publish plan_point as "here"
+    // publish plan_point as "here"
+    if( publish_near_point_ ) {
+      near_point_pub_.publish(plan_pose);
+    }
 
     if( plan_point < plan_.size() - 1 ) {
       int i = plan_point + 1;
@@ -210,13 +220,22 @@ namespace ackermann_local_planner {
       bool forward = isForwards(plan_pose, next_pose);
 
       // get a point forward of where we are on the plan
-      double forward_dist = 0.0;
+      double forward_dist = 0;
       while( forward_dist < forward_point_distance_ &&
           i < plan_.size() &&
           isForwards(plan_pose, next_pose) == forward ) {
+        plan_pose = plan_[i-1];
+        next_pose = plan_[i];
+        forward_dist += dist(plan_pose, next_pose);
+        i++;
       }
 
-      // TODO: publish 
+      geometry_msgs::PoseStamped goal_pose = next_pose;
+
+      // publish goal pose
+      if( publish_goal_ ) {
+        goal_pub_.publish(goal_pose);
+      }
     } else {
       // plan_point is the last point on the plan
       // we're here?
