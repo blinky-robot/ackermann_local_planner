@@ -37,6 +37,9 @@
 #ifndef ACKERMANN_LOCAL_PLANNER_ACKERMANN_PLANNER_ROS_H_
 #define ACKERMANN_LOCAL_PLANNER_ACKERMANN_PLANNER_ROS_H_
 
+// SHUT UP BOOST SIGNALS
+#define BOOST_SIGNALS_NO_DEPRECATION_WARNING
+
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 
@@ -130,13 +133,25 @@ namespace ackermann_local_planner {
       // TODO(hendrix): shared pointer
       dynamic_reconfigure::Server<AckermannPlannerConfig> *dsrv_;
       ackermann_local_planner::AckermannPlannerConfig default_config_;
-      bool setup_;
       tf::Stamped<tf::Pose> current_pose_;
 
       bool initialized_;
 
       base_local_planner::OdometryHelperRos odom_helper_;
       std::string odom_topic_;
+
+      // Limits
+      double max_vel_;
+      double min_vel_;
+      double min_radius_;
+      double acc_lim_;
+
+      double forward_point_distance_;
+
+      double xy_goal_tolerance_;
+      double yaw_goal_tolerance_;
+
+      bool move_;
   };
 };
 #endif

@@ -51,31 +51,21 @@ PLUGINLIB_EXPORT_CLASS(ackermann_local_planner::AckermannPlannerROS, nav_core::B
 namespace ackermann_local_planner {
 
   void AckermannPlannerROS::reconfigureCB(AckermannPlannerConfig &config, uint32_t level) {
-      if (setup_ && config.restore_defaults) {
-        config = default_config_;
-        config.restore_defaults = false;
-      }
-      if ( ! setup_) {
-        default_config_ = config;
-        setup_ = true;
-      }
+      max_vel_ = config.max_vel;
+      min_vel_ = config.min_vel;
+      min_radius_ = config.min_radius;
+      acc_lim_ = config.acc_lim;
 
-      // update generic local planner params
-      // TODO: update limits for Ackermann
-      base_local_planner::LocalPlannerLimits limits;
-      limits.max_vel_x = config.max_vel_x;
-      limits.min_vel_x = config.min_vel_x;
-      // TODO: add min_radius to limits
-      //limits.min_radius = config.min_radius;
-      limits.acc_lim_x = config.acc_lim_x;
+      forward_point_distance_ = config.forward_point_distance;
 
-      limits.xy_goal_tolerance = config.xy_goal_tolerance;
-      limits.yaw_goal_tolerance = config.yaw_goal_tolerance;
+      // TODO(hendrix): these may be obsolete
+      //vx_samples = config.vx_samples;
+      //radius_samples = config.radius_samples;
 
-      limits.prune_plan = config.prune_plan;
-      limits.trans_stopped_vel = config.trans_stopped_vel;
+      xy_goal_tolerance_ = config.xy_goal_tolerance;
+      yaw_goal_tolerance_ = config.yaw_goal_tolerance;
 
-      planner_util_.reconfigureCB(limits, config.restore_defaults);
+      move_ = config.move;
   }
 
   AckermannPlannerROS::AckermannPlannerROS() : initialized_(false),
@@ -154,6 +144,31 @@ namespace ackermann_local_planner {
   bool AckermannPlannerROS::computeVelocityCommands(geometry_msgs::Twist& cmd_vel) {
     // TODO(hendrix)
     //  do some real plannin here
+    // Ideas and questions:
+    //  - when do we give up and ask that the global planner re-plan?
+    //  - Given the global plan, pick a point(s) somewhere forward along the
+    //    path, and compute the dubins/dubins++ path to reach them
+    //    - repeat across various radii
+    //    - repeat for various points across the possible locations of the robot
+    //      - this is where we hook into AMCL's error estimate of our position
+    //    - make sure that the point we pick is strictly forward or backward
+    //      from the robot's current position
+    //    - publish all of the possible paths computed, for debugging
+    //  - given all of the possible computed paths, extract the first step,
+    //    and look for general concensus among the possibilities, ie:
+    //    - mostly forward, or mostly left, or mostly reverse+left
+    //    - if there is not concensus, bail and let the user figure it out.
+    //      come back to this later when it comes up
+    //  - publish some basic statistics over diagnostics
+    //    - average path computation time
+    //    - planning frequency
+    //    - staticstics about how frequently we use escape behaviors
+    //    - average velocity
+    //    - % of time/commands spent backing up
+    //  - absolutely do not publish a command that reverses direction if we
+    //    not completely stopped
+    //  - have a config switch that turns off the command output from the
+    //    planner. default it to ON
     return false;
   }
 };
