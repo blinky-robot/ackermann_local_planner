@@ -118,27 +118,21 @@ namespace ackermann_local_planner {
 
       void publishLocalPlan(std::vector<geometry_msgs::PoseStamped>& path);
 
-      void publishGlobalPlan(std::vector<geometry_msgs::PoseStamped>& path);
-
-      // TODO(hendrix): shared pointer
       tf::TransformListener* tf_; ///< @brief Used for transforming point clouds
 
       // for visualisation, publishers of global and local plan
       ros::Publisher g_plan_pub_, l_plan_pub_;
 
-      base_local_planner::LocalPlannerUtil planner_util_;
-
       costmap_2d::Costmap2DROS* costmap_ros_;
 
-      // TODO(hendrix): shared pointer
+      // TODO(hendrix): shared pointer?
       dynamic_reconfigure::Server<AckermannPlannerConfig> *dsrv_;
-      ackermann_local_planner::AckermannPlannerConfig default_config_;
-      tf::Stamped<tf::Pose> current_pose_;
 
       bool initialized_;
 
       base_local_planner::OdometryHelperRos odom_helper_;
-      std::string odom_topic_;
+
+      std::vector<geometry_msgs::PoseStamped> plan_;
 
       // Limits
       double max_vel_;
@@ -152,6 +146,10 @@ namespace ackermann_local_planner {
       double yaw_goal_tolerance_;
 
       bool move_;
+
+      // configuration
+      bool have_particlecloud_;
+      bool have_pose_with_cow_;
   };
 };
 #endif

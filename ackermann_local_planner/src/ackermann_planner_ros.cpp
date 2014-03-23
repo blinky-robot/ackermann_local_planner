@@ -68,8 +68,7 @@ namespace ackermann_local_planner {
       move_ = config.move;
   }
 
-  AckermannPlannerROS::AckermannPlannerROS() : initialized_(false),
-      odom_helper_("odom") {
+  AckermannPlannerROS::AckermannPlannerROS() : initialized_(false) {
 
   }
 
@@ -80,21 +79,16 @@ namespace ackermann_local_planner {
     if (! isInitialized()) {
 
       ros::NodeHandle private_nh("~/" + name);
-      g_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
       l_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
       tf_ = tf;
       costmap_ros_ = costmap_ros;
-      costmap_ros_->getRobotPose(current_pose_);
 
       // make sure to update the costmap we'll use for this cycle
       costmap_2d::Costmap2D* costmap = costmap_ros_->getCostmap();
 
-      planner_util_.initialize(tf, costmap, costmap_ros_->getGlobalFrameID());
-
-      if( private_nh.getParam( "odom_topic", odom_topic_ ))
-      {
-        odom_helper_.setOdomTopic( odom_topic_ );
-      }
+      std::string odom_topic;
+      private_nh.param<std::string>("odom_topic", odom_topic, "odom");
+      odom_helper_.setOdomTopic( odom_topic );
       
       initialized_ = true;
 
@@ -113,7 +107,8 @@ namespace ackermann_local_planner {
       return false;
     }
     ROS_INFO("Got new plan");
-    return false;
+    plan_ = orig_global_plan;
+    return true; // TODO: figure out what the return value here means
   }
 
   bool AckermannPlannerROS::isGoalReached() {
@@ -131,10 +126,6 @@ namespace ackermann_local_planner {
   }
 
 
-  void AckermannPlannerROS::publishGlobalPlan(std::vector<geometry_msgs::PoseStamped>& path) {
-    base_local_planner::publishPlan(path, g_plan_pub_);
-  }
-
   AckermannPlannerROS::~AckermannPlannerROS(){
     //make sure to clean things up
     delete dsrv_;
@@ -143,7 +134,7 @@ namespace ackermann_local_planner {
 
   bool AckermannPlannerROS::computeVelocityCommands(geometry_msgs::Twist& cmd_vel) {
     // TODO(hendrix)
-    //  do some real plannin here
+    //  do some real plannin' here
     // Ideas and questions:
     //  - when do we give up and ask that the global planner re-plan?
     //  - Given the global plan, pick a point(s) somewhere forward along the
@@ -169,6 +160,32 @@ namespace ackermann_local_planner {
     //    not completely stopped
     //  - have a config switch that turns off the command output from the
     //    planner. default it to ON
+
+    nav_msgs::Odometry odom;
+    odom_helper_.getOdom(odom);
+    double linear_vel = odom.twist.twist.linear.x;
+    double angular_vel = odom.twist.twist.angular.z;
+
+    // if we have a pose cloud, get it, otherwise just use our current pose
+    tf::Stamped<tf::Pose> current_pose;
+    if( have_particlecloud_ ) {
+      // TODO(hendrix)
+      //current_poses = particlecloud_;
+    } else if( have_pose_with_cow_ ) {
+      // TODO(hendrix)
+    } else {
+      costmap_ros_->getRobotPose(current_pose);
+    }
+
+    // get the current plan
+
+    if( move_ ) {
+      // TODO(hendrix)
+    } else {
+      cmd_vel.linear.x = 0;
+      cmd_vel.angular.z = 0;
+    }
+
     return false;
   }
 };
