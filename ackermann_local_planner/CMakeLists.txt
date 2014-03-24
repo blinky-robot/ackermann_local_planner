@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   angles
   base_local_planner
   costmap_2d
+  dubins_plus
   dynamic_reconfigure
   nav_core
   nav_msgs

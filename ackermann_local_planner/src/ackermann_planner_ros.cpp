@@ -45,6 +45,8 @@
 #include <base_local_planner/goal_functions.h>
 #include <nav_msgs/Path.h>
 
+#include <dubins_plus/dubins_plus.h>
+
 //register this planner as a BaseLocalPlanner plugin
 PLUGINLIB_EXPORT_CLASS(ackermann_local_planner::AckermannPlannerROS, nav_core::BaseLocalPlanner)
 
@@ -242,6 +244,45 @@ namespace ackermann_local_planner {
       if( publish_goal_ ) {
         goal_pub_.publish(goal_pose);
       }
+
+      // TODO(hendrix): for each potential position
+
+      // Compute Dubins path to the goal
+      geometry_msgs::Pose current_pose_msg;
+      tf::poseTFToMsg(current_pose, current_pose_msg);
+      std::vector<dubins_plus::Segment> path(dubins_plus::dubins_path(
+            min_radius_, current_pose_msg, goal_pose.pose));
+
+      std::vector<geometry_msgs::PoseStamped> local_plan;
+      double x = current_pose_msg.position.x;
+      double y = current_pose_msg.position.y;
+      double theta = tf::getYaw(current_pose_msg.orientation);
+
+      for( int i=0; i<path.size(); i++ ) {
+        ROS_INFO_NAMED("ackermann_planner",
+            "Dubins path length %f, curvature %f",
+            path[i].getLength(), path[i].getCurvature());
+        double length = path[i].getLength();
+        double curvature = path[i].getCurvature();
+        double l = 0;
+        static const double dl = 0.01;
+        while( l < length ) {
+          geometry_msgs::PoseStamped pose;
+          pose.header.frame_id = costmap_ros_->getGlobalFrameID();
+          pose.pose.position.x = x;
+          pose.pose.position.y = y;
+          pose.pose.orientation = tf::createQuaternionMsgFromYaw(theta);
+          local_plan.push_back(pose);
+
+          x += dl * cos(theta);
+          y += dl * sin(theta);
+          theta += curvature * dl;
+          l += dl;
+        }
+      }
+
+      publishLocalPlan(local_plan);
+
     } else {
       // plan_point is the last point on the plan
       // we're here?
@@ -250,14 +291,14 @@ namespace ackermann_local_planner {
     }
 
 
-    if( move_ ) {
-      // TODO(hendrix)
-    } else {
+    if( !move_ ) {
+      // if we're not supposed to be moving, zero out our command
       cmd_vel.linear.x = 0;
       cmd_vel.angular.z = 0;
     }
 
-    return false;
+    // return true if we were able to find a path, false otherwise
+    return true;
   }
 
   bool isForwards(geometry_msgs::PoseStamped &start,
