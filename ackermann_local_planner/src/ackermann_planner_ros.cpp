@@ -192,11 +192,16 @@ namespace ackermann_local_planner {
     if( have_particlecloud_ ) {
       // TODO(hendrix)
       //current_poses = particlecloud_;
+      ROS_INFO_NAMED("ackermann_planner", "Got position from ParticleCloud");
     } else if( have_pose_with_cow_ ) {
       // TODO(hendrix)
+      ROS_INFO_NAMED("ackermann_planner", "Got position from PoseWithCov");
     } else {
       costmap_ros_->getRobotPose(current_pose);
+      ROS_INFO_NAMED("ackermann_planner", "Got position from costmap");
     }
+    ROS_INFO_NAMED("ackermann_planner", "Staring point (%f, %f)",
+        current_pose.getOrigin().x(), current_pose.getOrigin().y());
 
     // get the nearest point on the global plan; both in angle space and
     // linear space
@@ -256,6 +261,8 @@ namespace ackermann_local_planner {
 
       // TODO(hendrix): for each potential position
 
+      ROS_INFO_NAMED("ackermann_planner", "Staring point (%f, %f)",
+          current_pose.getOrigin().x(), current_pose.getOrigin().y());
       // Compute Dubins path to the goal
       geometry_msgs::Pose current_pose_msg;
       tf::poseTFToMsg(current_pose, current_pose_msg);
@@ -308,6 +315,8 @@ namespace ackermann_local_planner {
       // we're here?
       //
       // ????
+      ROS_INFO_NAMED("ackermann_planner", "plan_point is the last point on the"
+          "plan. I guess we're here?");
     }
 
 
