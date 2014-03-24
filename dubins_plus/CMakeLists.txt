@@ -5,6 +5,7 @@ project(dubins_plus)
 find_package(catkin REQUIRED
   COMPONENTS
   geometry_msgs
+  rosunit
   tf
   )
 
@@ -54,3 +55,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
 ## Testing ##
 #############
 
+if(CATKIN_ENABLE_TESTING) 
+  catkin_add_gtest(test_dubins_plus test/dubins_plus.cpp)
+  target_link_libraries(test_dubins_plus dubins_plus)
+endif()

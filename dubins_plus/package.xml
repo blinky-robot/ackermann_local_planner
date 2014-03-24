@@ -13,8 +13,10 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>geometry_msgs</build_depend>
+  <build_depend>rosunit</build_depend>
   <build_depend>tf</build_depend>
 
   <run_depend>geometry_msgs</run_depend>
+  <run_depend>rosunit</run_depend>
   <run_depend>tf</run_depend>
 </package>
