@@ -49,19 +49,21 @@ TEST(DubinsTests, simpleExamples) {
 }
 
 TEST(DubinsTests, radiusExamples) {
+  // Test that scaling the previous examples by radius/distance works as
+  // expected
   double input[][4] = {
-    2,   1, 0, 0,
-    2,   1, 1, 0,
-    0.5, 1, -1, 0,
-    0.5, 1, 1, M_PI/2,
+    2,   2, 0, 0,
+    2,   2, 2, 0,
+    0.5, 0.5, -0.5, 0,
+    0.5, 0.5, 0.5, M_PI/2,
   };
   int input_sz = sizeof(input)/sizeof(double)/4;
   printf("Input size: %d\n", input_sz);
   double output[][6] = {
-    0.0,      1.0, 1.0,      0.0, 0.0,      1.0,
-    0.785398, 1.0, 1.414214, 0.0, 5.497787, 1.0,
-    5.497787, 1.0, 1.414214, 0.0, 0.785398, 1.0,
-    M_PI/2,   1.0, 0.0,      0.0, 0.0,     -1.0,
+    0.0,        0.5, 2.0,        0.0, 0.0,        0.5,
+    2*0.785398, 0.5, 2*1.414214, 0.0, 2*5.497787, 0.5,
+    5.497787/2, 2.0, 1.414214/2, 0.0, 0.785398/2, 2.0,
+    M_PI/2/2,   2.0, 0.0,        0.0, 0.0,       -2.0,
   };
 
   for(int i=0; i<input_sz; i++) {
