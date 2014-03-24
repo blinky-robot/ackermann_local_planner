@@ -62,7 +62,7 @@ namespace ackermann_local_planner {
 
       // TODO(hendrix): these may be obsolete
       //vx_samples = config.vx_samples;
-      //radius_samples = config.radius_samples;
+      radius_samples_ = config.radius_samples;
 
       xy_goal_tolerance_ = config.xy_goal_tolerance;
       yaw_goal_tolerance_ = config.yaw_goal_tolerance;
@@ -281,20 +281,31 @@ namespace ackermann_local_planner {
       // Compute Dubins path to the goal
       geometry_msgs::Pose current_pose_msg;
       tf::poseTFToMsg(current_pose, current_pose_msg);
-      std::vector<dubins_plus::Segment> path(dubins_plus::dubins_path(
-            min_radius_, current_pose_msg, goal_pose.pose));
+
+      std::vector<dubins_plus::Segment> local_path;
+      double max_curvature = 1/min_radius_;
+      ROS_INFO_NAMED("ackermann_planner", "Maximum curvature: %f", max_curvature);
+      for( int i=0; i<radius_samples_; i++ ) {
+        double curvature = (max_curvature/radius_samples_) * (i+1);
+        ROS_INFO_NAMED("ackermann_planner", "Considering curvature: %f", curvature);
+        double radius = 1/curvature;
+        std::vector<dubins_plus::Segment> path(dubins_plus::dubins_path(radius,
+              current_pose_msg, goal_pose.pose));
+        // TODO(hendrix): score and choose a best plan
+        local_path = path;
+      }
 
       std::vector<geometry_msgs::PoseStamped> local_plan;
       double x = current_pose_msg.position.x;
       double y = current_pose_msg.position.y;
       double theta = tf::getYaw(current_pose_msg.orientation);
 
-      for( int i=0; i<path.size(); i++ ) {
+      for( int i=0; i<local_path.size(); i++ ) {
         ROS_INFO_NAMED("ackermann_planner",
             "Dubins path length %f, curvature %f",
-            path[i].getLength(), path[i].getCurvature());
-        double length = path[i].getLength();
-        double curvature = path[i].getCurvature();
+            local_path[i].getLength(), local_path[i].getCurvature());
+        double length = local_path[i].getLength();
+        double curvature = local_path[i].getCurvature();
         double l = 0;
         static const double dl = 0.01;
         while( l < length ) {
@@ -313,8 +324,8 @@ namespace ackermann_local_planner {
       }
 
       i=0;
-      for( ; i<path.size() && path[i].getLength() == 0; i++ );
-      double target_curvature = path[i].getCurvature();
+      for( ; i<local_path.size() && local_path[i].getLength() == 0; i++ );
+      double target_curvature = local_path[i].getCurvature();
 
       double target_speed = min_vel_; // TODO(hendrix): velocity smoothing
       double target_angular = target_curvature * target_speed;

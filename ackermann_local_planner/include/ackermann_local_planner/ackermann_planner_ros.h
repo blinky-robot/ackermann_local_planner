@@ -148,6 +148,8 @@ namespace ackermann_local_planner {
 
       bool move_;
 
+      int radius_samples_;
+
       // configuration
       bool have_particlecloud_;
       bool have_pose_with_cow_;
