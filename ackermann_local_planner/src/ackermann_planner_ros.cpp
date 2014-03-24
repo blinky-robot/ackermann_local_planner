@@ -177,6 +177,11 @@ namespace ackermann_local_planner {
     //  - have a config switch that turns off the command output from the
     //    planner. default it to ON
 
+    // if we don't have a plan, what are we doing here???
+    if( plan_.size() < 2 ) {
+      return false;
+    }
+
     nav_msgs::Odometry odom;
     odom_helper_.getOdom(odom);
     double linear_vel = odom.twist.twist.linear.x;
@@ -203,11 +208,15 @@ namespace ackermann_local_planner {
       double theta = fabs(base_local_planner::getGoalOrientationAngleDifference(
           current_pose, tf::getYaw(plan_[i].pose.orientation)));
       double metric = dist + theta / 10.0;
+      //ROS_INFO_NAMED("ackermann_planner", "Distance to path: %f", dist);
       if( metric < best_metric ) {
         best_metric = metric;
         plan_point = i;
       }
     }
+
+    ROS_INFO_NAMED("ackermann_planner", "Distance to near point #%d: %f",
+        plan_point, best_metric);
 
     if( abs(plan_point - last_plan_point_) > 20 ) {
       ROS_WARN("Whoa! We moved a lot. Not sure we're still on the right part of the plan");
@@ -257,6 +266,8 @@ namespace ackermann_local_planner {
       double x = current_pose_msg.position.x;
       double y = current_pose_msg.position.y;
       double theta = tf::getYaw(current_pose_msg.orientation);
+      ROS_INFO_NAMED("ackermann_planner", "Staring point (%f, %f, %f)",
+          x, y, theta);
 
       for( int i=0; i<path.size(); i++ ) {
         ROS_INFO_NAMED("ackermann_planner",
@@ -280,6 +291,15 @@ namespace ackermann_local_planner {
           l += dl;
         }
       }
+
+      i=0;
+      for( ; i<path.size() && path[i].getLength() == 0; i++ );
+      double target_curvature = path[i].getCurvature();
+
+      double target_speed = min_vel_; // TODO(hendrix): velocity smoothing
+      double target_angular = target_curvature * target_speed;
+      cmd_vel.linear.x = target_speed;
+      cmd_vel.angular.z = target_angular;
 
       publishLocalPlan(local_plan);
 
