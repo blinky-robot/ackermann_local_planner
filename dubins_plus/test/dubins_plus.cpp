@@ -28,7 +28,6 @@ TEST(DubinsTests, simpleExamples) {
     1, 1, M_PI/2,
   };
   int input_sz = sizeof(input)/sizeof(double)/3;
-  printf("Input size: %d\n", input_sz);
   double output[][6] = {
     0.0,      1.0, 1.0,      0.0, 0.0,      1.0,
     0.785398, 1.0, 1.414214, 0.0, 5.497787, 1.0,
@@ -58,7 +57,6 @@ TEST(DubinsTests, radiusExamples) {
     0.5, 0.5, 0.5, M_PI/2,
   };
   int input_sz = sizeof(input)/sizeof(double)/4;
-  printf("Input size: %d\n", input_sz);
   double output[][6] = {
     0.0,        0.5, 2.0,        0.0, 0.0,        0.5,
     2*0.785398, 0.5, 2*1.414214, 0.0, 2*5.497787, 0.5,
@@ -69,6 +67,31 @@ TEST(DubinsTests, radiusExamples) {
   for(int i=0; i<input_sz; i++) {
     std::vector<Segment> a = dubins_path(input[i][0], input[i][1], input[i][2],
         input[i][3]);
+    EXPECT_EQ(a.size(), 3);
+    EXPECT_FLOAT_EQ(a[0].getLength(), output[i][0]);
+    EXPECT_FLOAT_EQ(a[0].getCurvature(), output[i][1]);
+    EXPECT_FLOAT_EQ(a[1].getLength(), output[i][2]);
+    EXPECT_FLOAT_EQ(a[1].getCurvature(), output[i][3]);
+    EXPECT_FLOAT_EQ(a[2].getLength(), output[i][4]);
+    EXPECT_FLOAT_EQ(a[2].getCurvature(), output[i][5]);
+  }
+}
+
+TEST(DubinsTests, startAngle) {
+  // Test that varied starting angles and positions give the correct results
+  double input[][6] = {
+    0, 0, M_PI/2, -1, -1, M_PI,
+  };
+  int input_sz = sizeof(input)/sizeof(double)/4;
+  printf("Input size: %d\n", input_sz);
+  double output[][6] = {
+    M_PI/2, 1.0, 0.0, 0.0, 0.0, 0.0,
+  };
+
+  for(int i=0; i<input_sz; i++) {
+    std::vector<Segment> a = dubins_path(1,
+        input[i][0], input[i][1], input[i][2],
+        input[i][3], input[i][4], input[i][5]);
     EXPECT_EQ(a.size(), 3);
     EXPECT_FLOAT_EQ(a[0].getLength(), output[i][0]);
     EXPECT_FLOAT_EQ(a[0].getCurvature(), output[i][1]);
