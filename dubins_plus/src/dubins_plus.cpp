@@ -259,7 +259,7 @@ namespace dubins_plus {
     std::vector<Segment> raw = dubins_path(x/radius, y/radius, theta);
     std::vector<Segment> result;
     // scale result by radius
-    for( int i=0; i<result.size(); i++ ) {
+    for( int i=0; i<raw.size(); i++ ) {
       result.push_back(Segment(raw[i].getLength() * radius,
           raw[i].getCurvature() / radius));
     }
