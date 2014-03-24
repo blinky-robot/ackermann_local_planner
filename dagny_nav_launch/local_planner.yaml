@@ -42,4 +42,4 @@ AckermannPlannerROS:
    publish_goal: true
    publish_near_point: true
 
-   move: false
+   move: true

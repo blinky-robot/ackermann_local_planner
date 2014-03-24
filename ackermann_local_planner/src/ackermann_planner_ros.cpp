@@ -70,7 +70,8 @@ namespace ackermann_local_planner {
       move_ = config.move;
   }
 
-  AckermannPlannerROS::AckermannPlannerROS() : initialized_(false) {
+  AckermannPlannerROS::AckermannPlannerROS() : initialized_(false),
+    have_particlecloud_(false), have_pose_with_cow_(false) {
 
   }
 
@@ -200,7 +201,7 @@ namespace ackermann_local_planner {
       costmap_ros_->getRobotPose(current_pose);
       ROS_INFO_NAMED("ackermann_planner", "Got position from costmap");
     }
-    ROS_INFO_NAMED("ackermann_planner", "Staring point (%f, %f)",
+    ROS_INFO_NAMED("ackermann_planner", "Starting point (%f, %f)",
         current_pose.getOrigin().x(), current_pose.getOrigin().y());
 
     // get the nearest point on the global plan; both in angle space and
@@ -252,6 +253,9 @@ namespace ackermann_local_planner {
         i++;
       }
 
+      ROS_INFO_NAMED("ackermann_planner", "Target pose #%d is %f meters away",
+          i, forward_dist);
+
       geometry_msgs::PoseStamped goal_pose = next_pose;
 
       // publish goal pose
@@ -261,8 +265,6 @@ namespace ackermann_local_planner {
 
       // TODO(hendrix): for each potential position
 
-      ROS_INFO_NAMED("ackermann_planner", "Staring point (%f, %f)",
-          current_pose.getOrigin().x(), current_pose.getOrigin().y());
       // Compute Dubins path to the goal
       geometry_msgs::Pose current_pose_msg;
       tf::poseTFToMsg(current_pose, current_pose_msg);
@@ -273,8 +275,6 @@ namespace ackermann_local_planner {
       double x = current_pose_msg.position.x;
       double y = current_pose_msg.position.y;
       double theta = tf::getYaw(current_pose_msg.orientation);
-      ROS_INFO_NAMED("ackermann_planner", "Staring point (%f, %f, %f)",
-          x, y, theta);
 
       for( int i=0; i<path.size(); i++ ) {
         ROS_INFO_NAMED("ackermann_planner",
