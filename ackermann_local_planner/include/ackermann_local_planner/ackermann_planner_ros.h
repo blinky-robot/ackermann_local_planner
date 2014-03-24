@@ -160,6 +160,8 @@ namespace ackermann_local_planner {
 
       // transient data
       int last_plan_point_;
+
+      bool goal_reached_;
   };
 
   // Helper functions that don't need class context

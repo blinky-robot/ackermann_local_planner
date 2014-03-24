@@ -71,7 +71,8 @@ namespace ackermann_local_planner {
   }
 
   AckermannPlannerROS::AckermannPlannerROS() : initialized_(false),
-    have_particlecloud_(false), have_pose_with_cow_(false) {
+    have_particlecloud_(false), have_pose_with_cow_(false),
+    goal_reached_(false) {
 
   }
 
@@ -118,12 +119,16 @@ namespace ackermann_local_planner {
     }
     ROS_INFO("Got new plan");
     // Transform global plan into local coordinate space
+    /*
     tf::Stamped<tf::Pose> pose;
     costmap_ros_->getRobotPose(pose);
     ROS_INFO_NAMED("ackermann_planner", "Transforming global plan into %s frame", costmap_ros_->getGlobalFrameID().c_str());
     base_local_planner::transformGlobalPlan(*tf_, orig_global_plan, pose,
         *costmap_ros_->getCostmap(), costmap_ros_->getGlobalFrameID(), plan_);
+        */
+    plan_ = orig_global_plan;
 
+    goal_reached_ = false;
     last_plan_point_ = 0; // we're at the beginning of the plan
     return true; // TODO: figure out what the return value here means
   }
@@ -135,7 +140,7 @@ namespace ackermann_local_planner {
     }
     // TODO(hendrix):
     //  probably use some sort of goal tolerance parameters here
-    return false;
+    return goal_reached_;
   }
 
   void AckermannPlannerROS::publishLocalPlan(std::vector<geometry_msgs::PoseStamped>& path) {
@@ -316,7 +321,10 @@ namespace ackermann_local_planner {
       //
       // ????
       ROS_INFO_NAMED("ackermann_planner", "plan_point is the last point on the"
-          "plan. I guess we're here?");
+          " plan. I guess we're here?");
+      ROS_INFO_NAMED("ackermann_planner", "At point %d; %zd points in plan",
+          plan_point, plan_.size());
+      goal_reached_ = true;
     }
 
 
