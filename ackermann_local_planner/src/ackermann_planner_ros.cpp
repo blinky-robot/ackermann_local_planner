@@ -269,6 +269,14 @@ namespace ackermann_local_planner {
       }
 
       // TODO(hendrix): for each potential position
+      // for each starting position
+      //   for each radius/curvature
+      //     generate a path from start to end
+      //    choose the best path for this start point
+      //    - possibly publish these
+      // analyze the set of best paths for each starting point
+      // - look for general patterns/concensus
+      // - possibly publish all plans considered
 
       // Compute Dubins path to the goal
       geometry_msgs::Pose current_pose_msg;
