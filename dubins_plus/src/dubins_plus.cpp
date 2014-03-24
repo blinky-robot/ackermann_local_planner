@@ -269,12 +269,21 @@ namespace dubins_plus {
   std::vector<Segment> dubins_path(double radius,
       double x1, double y1, double theta1,
       double x2, double y2, double theta2) {
-    // TODO: normalize and call dubins_path(r, x, y, t)
+    // normalize and call dubins_path(r, x, y, t)
+
+    // tanslate to the origin
     double x = x2 - x1;
     double y = y2 - y1;
-    // TODO: this is probably not right; it implies a rotation of the
-    // coordinate system by -theta1 :(
+
+    // compute distance and direction
+    double d = sqrt(x*x + y*y);
+    double th = atan2(y, x);
+
+    // rotate by -theta1
     double theta = theta2 - theta1;
+    th -= theta1;
+    x = d * cos(th);
+    y = d * sin(th);
     // normalize theta
     while( theta > M_PI ) {
       theta -= 2*M_PI;

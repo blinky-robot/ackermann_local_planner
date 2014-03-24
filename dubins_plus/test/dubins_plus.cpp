@@ -80,12 +80,18 @@ TEST(DubinsTests, radiusExamples) {
 TEST(DubinsTests, startAngle) {
   // Test that varied starting angles and positions give the correct results
   double input[][6] = {
-    0, 0, M_PI/2, -1, -1, M_PI,
+    0, 0, M_PI/2, -1, 1, M_PI, // rotation only
+    1, 1, 0, 2, 2, M_PI/2,     // translation only
+    1, 1, M_PI/2, 0, 2, M_PI,  // translation and rotation
+    0, 0, M_PI/4, 0, sqrt(2), 3*M_PI/4, 
   };
-  int input_sz = sizeof(input)/sizeof(double)/4;
-  printf("Input size: %d\n", input_sz);
+  int input_sz = sizeof(input)/sizeof(double)/6;
+  //printf("Input size: %d\n", input_sz);
   double output[][6] = {
-    M_PI/2, 1.0, 0.0, 0.0, 0.0, 0.0,
+    M_PI/2, 1.0, 0.0, 0.0, 0.0, -1.0,
+    M_PI/2, 1.0, 0.0, 0.0, 0.0, -1.0,
+    M_PI/2, 1.0, 0.0, 0.0, 0.0, -1.0,
+    M_PI/2, 1.0, 0.0, 0.0, 0.0, -1.0,
   };
 
   for(int i=0; i<input_sz; i++) {
