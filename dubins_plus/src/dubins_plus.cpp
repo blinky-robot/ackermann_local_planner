@@ -197,9 +197,7 @@ namespace dubins_plus {
     return DubinsPath();
   }
 
-  std::vector<Segment> dubins_path(double radius,
-      double x, double y, double theta) {
-    std::vector<Segment> result;
+  std::vector<Segment> dubins_path(double x, double y, double theta) {
     // See: http://planning.cs.uiuc.edu/node821.html
     // and: http://ftp.laas.fr/pub/ria/promotion/chap3.pdf (page 141)
     // and http://ompl.kavrakilab.org/DubinsStateSpace_8cpp_source.html
@@ -210,6 +208,61 @@ namespace dubins_plus {
     double beta  = mod2pi(theta - th);
 
     // try all six primitives and pick the best:
+    DubinsPath path(dubinsLSL(d, alpha, beta)), tmp(dubinsRSR(d, alpha, beta));
+    double len, min_length = path.length();
+
+    if ((len = tmp.length()) < min_length) {
+      min_length = len;
+      path = tmp;
+    }
+    tmp = dubinsRSL(d, alpha, beta);
+    if ((len = tmp.length()) < min_length) {
+      min_length = len;
+      path = tmp;
+    }
+    tmp = dubinsLSR(d, alpha, beta);
+    if ((len = tmp.length()) < min_length) {
+      min_length = len;
+      path = tmp;
+    }
+    tmp = dubinsRLR(d, alpha, beta);
+    if ((len = tmp.length()) < min_length) {
+      min_length = len;
+      path = tmp;
+    }
+    tmp = dubinsLRL(d, alpha, beta);
+    if ((len = tmp.length()) < min_length) {
+      path = tmp;
+    }
+    std::vector<Segment> result;
+    for( int i=0; i<3; i++ ) {
+      double curvature = 0;
+      switch(path.type_[i]) {
+        case DUBINS_LEFT:
+          curvature = 1;
+          break;
+        case DUBINS_RIGHT:
+          curvature = -1;
+          break;
+        case DUBINS_STRAIGHT:
+          curvature = 0;
+          break;
+      }
+      result.push_back(Segment(path.length_[i], curvature));
+    }
+    return result;
+  }
+
+  std::vector<Segment> dubins_path(double radius,
+      double x, double y, double theta) {
+    // scale input to a radius of 1
+    std::vector<Segment> raw = dubins_path(x/radius, y/radius, theta);
+    std::vector<Segment> result;
+    // scale result by radius
+    for( int i=0; i<result.size(); i++ ) {
+      result.push_back(Segment(raw[i].getLength() * radius,
+          raw[i].getCurvature() / radius));
+    }
     return result;
   }
 
