@@ -327,7 +327,31 @@ namespace ackermann_local_planner {
       for( ; i<local_path.size() && local_path[i].getLength() == 0; i++ );
       double target_curvature = local_path[i].getCurvature();
 
-      double target_speed = min_vel_; // TODO(hendrix): velocity smoothing
+      // target maximum velocity
+      double target_speed = max_vel_;
+      // limit to maximum acceleration
+      target_speed = std::min(target_speed, linear_vel + acc_lim_);
+      // decelerate to min_vel_ at end of path (using acc_lim_)
+      //  we have forward_dist meters remaining
+      // required_decel = (target_speed - min_vel_)
+      // decel_time = required_decel / acc_lim_
+      // x = a*t^2 + v0*t + x0
+      // decel_distance = acc_lim_ * decel_time * decel_time + 
+      //                  linear_vel * decel_time + 0
+      double required_decel = target_speed - min_vel_;
+      double decel_time = required_decel / acc_lim_;
+      double decel_distance = acc_lim_ * decel_time * decel_time +
+                              linear_vel * decel_time + 
+                              0;
+      // if we have less than decel_distance to the goal, we should be
+      // decelerating
+      // TODO: this oscillates. makes me sad.
+      if( decel_distance * 1.1 >= forward_dist ) {
+        target_speed = linear_vel - acc_lim_;
+      }
+      // limit to minimum speed
+      target_speed = std::max(target_speed, min_vel_);
+
       double target_angular = target_curvature * target_speed;
       cmd_vel.linear.x = target_speed;
       cmd_vel.angular.z = target_angular;
