@@ -341,13 +341,13 @@ namespace ackermann_local_planner {
       double required_decel = target_speed - min_vel_;
       double decel_time = required_decel / acc_lim_;
       double decel_distance = acc_lim_ * decel_time * decel_time +
-                              linear_vel * decel_time + 
+                              target_speed * decel_time +
                               0;
       // if we have less than decel_distance to the goal, we should be
       // decelerating
       // TODO: this oscillates. makes me sad.
       if( decel_distance * 1.1 >= forward_dist ) {
-        target_speed = linear_vel - acc_lim_;
+        target_speed = target_speed - acc_lim_;
       }
       // limit to minimum speed
       target_speed = std::max(target_speed, min_vel_);
