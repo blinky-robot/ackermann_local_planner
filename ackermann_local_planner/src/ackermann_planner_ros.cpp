@@ -324,7 +324,7 @@ namespace ackermann_local_planner {
       }
 
       i=0;
-      for( ; i<local_path.size() && local_path[i].getLength() == 0; i++ );
+      for( ; i<local_path.size() && local_path[i].getLength() < 0.01; i++ );
       double target_curvature = local_path[i].getCurvature();
 
       // target maximum velocity
