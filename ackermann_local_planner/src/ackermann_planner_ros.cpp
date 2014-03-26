@@ -292,6 +292,11 @@ namespace ackermann_local_planner {
         std::vector<dubins_plus::Segment> path(dubins_plus::dubins_path(radius,
               current_pose_msg, goal_pose.pose));
         // TODO(hendrix): score and choose a best plan
+        // possible scoring parameters:
+        //  - curvature. lower is better
+        //  - distance/match to global plan
+        //    - include x/y and angular distance
+        //  - length of path compared to length of global plan
         local_path = path;
       }
 
