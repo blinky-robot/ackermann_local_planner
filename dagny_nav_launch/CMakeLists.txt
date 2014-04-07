@@ -5,7 +5,8 @@ find_package(catkin REQUIRED COMPONENTS roslaunch)
 
 catkin_package()
 
-#if test...
-roslaunch_add_file_check(amcl_diff.launch)
-roslaunch_add_file_check(dagny_gmapping.launch)
-roslaunch_add_file_check(dagny_nav.launch)
+if(CATKIN_ENABLE_TESTING)
+  roslaunch_add_file_check(amcl_diff.launch)
+  roslaunch_add_file_check(dagny_gmapping.launch)
+  roslaunch_add_file_check(dagny_nav.launch)
+endif()
