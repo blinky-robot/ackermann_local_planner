@@ -58,6 +58,8 @@
 
 #include <base_local_planner/odometry_helper_ros.h>
 
+#include <dubins_plus/dubins_plus.h>
+
 namespace ackermann_local_planner {
   /**
    * @class AckermannPlannerROS
@@ -115,6 +117,11 @@ namespace ackermann_local_planner {
        * @brief Callback to update the local planner's parameters based on dynamic reconfigure
        */
       void reconfigureCB(AckermannPlannerConfig &config, uint32_t level);
+
+      int nearestPoint(const int start_point, 
+          const tf::Stamped<tf::Pose> & pose) const;
+      double scoreTrajectory(const std::vector<dubins_plus::Segment> &path,
+          double global_length, double global_dtheta) const;
 
       void publishLocalPlan(std::vector<geometry_msgs::PoseStamped>& path);
       void publishGlobalPlan(std::vector<geometry_msgs::PoseStamped>& path);

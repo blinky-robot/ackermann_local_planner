@@ -37,6 +37,8 @@
 
 #include <ackermann_local_planner/ackermann_planner_ros.h>
 #include <cmath>
+#include <limits>
+#include <boost/foreach.hpp>
 
 #include <ros/console.h>
 
@@ -44,8 +46,7 @@
 
 #include <base_local_planner/goal_functions.h>
 #include <nav_msgs/Path.h>
-
-#include <dubins_plus/dubins_plus.h>
+#include <angles/angles.h>
 
 //register this planner as a BaseLocalPlanner plugin
 PLUGINLIB_EXPORT_CLASS(ackermann_local_planner::AckermannPlannerROS, nav_core::BaseLocalPlanner)
@@ -110,6 +111,52 @@ namespace ackermann_local_planner {
     else{
       ROS_WARN("This planner has already been initialized, doing nothing.");
     }
+  }
+
+  int AckermannPlannerROS::nearestPoint(const int start_point,
+      const tf::Stamped<tf::Pose> & pose) const {
+    int plan_point = start_point;
+    double best_metric = std::numeric_limits<double>::max();
+    for( int i=start_point; i<plan_.size(); i++ ) {
+      double dist = base_local_planner::getGoalPositionDistance(pose,
+          plan_[i].pose.position.x, plan_[i].pose.position.y);
+      double theta = fabs(base_local_planner::getGoalOrientationAngleDifference(
+          pose, tf::getYaw(plan_[i].pose.orientation)));
+      double metric = dist + theta / 10.0;
+      //ROS_INFO_NAMED("ackermann_planner", "Distance to path: %f", dist);
+      if( metric < best_metric ) {
+        best_metric = metric;
+        plan_point = i;
+      }
+    }
+    return plan_point;
+  }
+
+  double AckermannPlannerROS::scoreTrajectory(
+      const std::vector<dubins_plus::Segment> &path,
+      double global_length, double global_dtheta) const {
+    // TODO(hendrix): score and choose a best plan
+    // possible scoring parameters:
+    //  - curvature. lower is better
+    //  - distance/match to global plan
+    //    - include x/y and angular distance
+    //  - length of path compared to length of global plan
+    double dtheta = 0;
+    double local_length = 0;
+    BOOST_FOREACH(dubins_plus::Segment s, path) {
+      local_length += s.getLength();
+      dtheta += std::abs(s.getCurvature() * s.getLength());
+    }
+    // normalized to a base of 1.0. Values > 1.0 are worse
+    //  don't count paths shorter than the global path as better
+    double length_cost = std::max(local_length/global_length, 1.0);
+
+    // normalized to a base of 1.0 over the curvature in the global path
+    double curve_cost = dtheta/global_dtheta;
+    ROS_INFO_NAMED("ackermann_planner", "Length cost: %f, curve cost: %f",
+        length_cost, curve_cost);
+
+    return length_cost + curve_cost;
   }
   
   bool AckermannPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& orig_global_plan) {
@@ -211,26 +258,10 @@ namespace ackermann_local_planner {
 
     // get the nearest point on the global plan; both in angle space and
     // linear space
-    int plan_point = last_plan_point_;
-    double best_metric = 1e10; // TODO(hendrix): double max
-    for( int i=last_plan_point_; i<plan_.size(); i++ ) {
-      double dist = base_local_planner::getGoalPositionDistance(current_pose,
-          plan_[i].pose.position.x, plan_[i].pose.position.y);
-      double theta = fabs(base_local_planner::getGoalOrientationAngleDifference(
-          current_pose, tf::getYaw(plan_[i].pose.orientation)));
-      double metric = dist + theta / 10.0;
-      //ROS_INFO_NAMED("ackermann_planner", "Distance to path: %f", dist);
-      if( metric < best_metric ) {
-        best_metric = metric;
-        plan_point = i;
-      }
-    }
-
-    ROS_INFO_NAMED("ackermann_planner", "Distance to near point #%d: %f",
-        plan_point, best_metric);
+    int plan_point = nearestPoint(last_plan_point_, current_pose);
 
     if( abs(plan_point - last_plan_point_) > 20 ) {
-      ROS_WARN("Whoa! We moved a lot. Not sure we're still on the right part of the plan");
+      ROS_WARN_NAMED("ackermann_planner", "Whoa! We moved a lot. Not sure we're still on the right part of the plan");
     }
 
     last_plan_point_ = plan_point;
@@ -249,12 +280,16 @@ namespace ackermann_local_planner {
 
       // get a point forward of where we are on the plan
       double forward_dist = 0;
+      double dtheta = 0;
       while( forward_dist < forward_point_distance_ &&
           i < plan_.size() &&
           isForwards(plan_pose, next_pose) == forward ) {
         plan_pose = plan_[i-1];
         next_pose = plan_[i];
         forward_dist += dist(plan_pose, next_pose);
+        dtheta += std::abs(angles::shortest_angular_distance(
+              tf::getYaw(next_pose.pose.orientation),
+              tf::getYaw(plan_pose.pose.orientation)));
         i++;
       }
 
@@ -283,6 +318,7 @@ namespace ackermann_local_planner {
       tf::poseTFToMsg(current_pose, current_pose_msg);
 
       std::vector<dubins_plus::Segment> local_path;
+      double best_score = std::numeric_limits<double>::max();
       double max_curvature = 1/min_radius_;
       ROS_INFO_NAMED("ackermann_planner", "Maximum curvature: %f", max_curvature);
       for( int i=0; i<radius_samples_; i++ ) {
@@ -291,13 +327,11 @@ namespace ackermann_local_planner {
         double radius = 1/curvature;
         std::vector<dubins_plus::Segment> path(dubins_plus::dubins_path(radius,
               current_pose_msg, goal_pose.pose));
-        // TODO(hendrix): score and choose a best plan
-        // possible scoring parameters:
-        //  - curvature. lower is better
-        //  - distance/match to global plan
-        //    - include x/y and angular distance
-        //  - length of path compared to length of global plan
-        local_path = path;
+        double score = scoreTrajectory(path, forward_dist, dtheta);
+        if( score < best_score ) {
+          best_score = score;
+          local_path = path;
+        }
       }
 
       std::vector<geometry_msgs::PoseStamped> local_plan;
