@@ -43,8 +43,8 @@ namespace dubins_plus {
       Segment(double length, double curvature) : length(length),
         curvature(curvature) {};
     private:
-      const double length;
-      const double curvature;
+      double length;
+      double curvature;
   };
 
   // the core algorithm: compute the path from the origin to the point given by
