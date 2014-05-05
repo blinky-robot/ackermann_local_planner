@@ -7,8 +7,8 @@ height: 5.0
 resolution: 0.05
 
 plugins:
-   - name: sonar_layer
-     type: "sonar_layer::SonarLayer"
+#   - name: sonar_layer
+#     type: "sonar_layer::SonarLayer"
    - name: obstacle_layer
      type: "costmap_2d::ObstacleLayer"
    - name: footprint_layer
