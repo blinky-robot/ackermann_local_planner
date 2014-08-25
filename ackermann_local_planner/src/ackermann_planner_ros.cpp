@@ -59,7 +59,7 @@ namespace ackermann_local_planner {
       min_radius_ = config.min_radius;
       acc_lim_ = config.acc_lim;
 
-      forward_point_distance_ = config.forward_point_distance;
+      lookahead_factor_ = config.lookahead_factor;
 
       // TODO(hendrix): these may be obsolete
       //vx_samples = config.vx_samples;
@@ -286,6 +286,54 @@ namespace ackermann_local_planner {
       // get the direction (forward/backwards) on the plan
       bool forward = isForwards(plan_pose, next_pose);
 
+      // Pure pursuit algorithm (Coulter R. Craig, 1992)
+      // compute the curvature at the current point
+      double local_curvature = 0;
+      {
+        double dt = (next_pose.header.stamp - plan_pose.header.stamp).toSec();
+        double dx = (next_pose.pose.position.x - plan_pose.pose.position.x)/dt;
+        double dy = (next_pose.pose.position.x - plan_pose.pose.position.y)/dt;
+        local_curvature = hypot(dx, dy);
+      }
+      if( plan_point > 0 ) {
+        const geometry_msgs::PoseStamped & prev_pose = plan_[plan_point-1];
+        double dt = (plan_pose.header.stamp - prev_pose.header.stamp).toSec();
+        double dx = (plan_pose.pose.position.x - prev_pose.pose.position.x)/dt;
+        double dy = (plan_pose.pose.position.y - prev_pose.pose.position.y)/dt;
+        // average curvature to previous point with curvature to next point
+        local_curvature = (local_curvature + hypot(dx, dy))/2;
+      }
+      // Pure pursuit lookahead
+      // r = 1 / curvature
+      // lookahend = factor * r
+      //           = factor / curvature
+      double forward_point_distance = lookahead_factor_ / local_curvature;
+      // get a point forward of where we are on the plan
+      double forward_dist = 0;
+      double dtheta = 0;
+
+      while( forward_dist < forward_point_distance &&
+          i < plan_.size() &&
+          isForwards(plan_pose, next_pose) == forward ) {
+        plan_pose = plan_[i-1];
+        next_pose = plan_[i];
+        forward_dist += dist(plan_pose, next_pose);
+        dtheta += std::abs(angles::shortest_angular_distance(
+              tf::getYaw(next_pose.pose.orientation),
+              tf::getYaw(plan_pose.pose.orientation)));
+
+        i++;
+      }
+
+      ROS_INFO_NAMED("ackermann_planner", "Target pose #%d is %f meters away",
+          i, forward_dist);
+
+      geometry_msgs::PoseStamped goal_pose = next_pose;
+
+      // publish goal pose
+      if( publish_goal_ ) {
+        goal_pub_.publish(goal_pose);
+      }
 
       // TODO(hendrix): for each potential position
       // for each starting position
@@ -308,54 +356,20 @@ namespace ackermann_local_planner {
       double max_curvature = 1/min_radius_;
       //ROS_INFO_NAMED("ackermann_planner", "Maximum curvature: %f", max_curvature);
 
-      // get a point forward of where we are on the plan
-      double forward_dist = 0;
-      double dtheta = 0;
-      geometry_msgs::PoseStamped goal_pose;
-      double forward_sample_step = forward_point_distance_ / 10.0; // TODO: parameter
-
-      // sample across forward point distance
-      for( double forward_sample_distance = forward_sample_step;
-          forward_sample_distance < forward_point_distance_ + forward_sample_step;
-          forward_sample_distance += forward_sample_step
-          ) {
-
-        while( forward_dist < forward_sample_distance &&
-            i < plan_.size() &&
-            isForwards(plan_pose, next_pose) == forward ) {
-          plan_pose = plan_[i-1];
-          next_pose = plan_[i];
-          forward_dist += dist(plan_pose, next_pose);
-          dtheta += std::abs(angles::shortest_angular_distance(
-                tf::getYaw(next_pose.pose.orientation),
-                tf::getYaw(plan_pose.pose.orientation)));
-          i++;
-        }
-
-        goal_pose = next_pose;
-      
-        /*
-        ROS_INFO_NAMED("ackermann_planner", "Target pose #%d is %f meters away",
-            i, forward_dist);
-            */
-
-        ROS_INFO_NAMED("ackermann_planner", "Goal length: %f, goal_dtheta: %f",
-            forward_dist, dtheta);
-        
-        // sample across curvature
-        for( int i=0; i<radius_samples_; i++ ) {
-          double curvature = (max_curvature/radius_samples_) * (i+1);
-          //ROS_INFO_NAMED("ackermann_planner", "Considering curvature: %f", curvature);
-          double radius = 1/curvature;
-          std::vector<dubins_plus::Segment> path(dubins_plus::dubins_path(radius,
-                current_pose_msg, goal_pose.pose));
-          double score = scoreTrajectory(path, forward_dist, dtheta);
-          if( score < best_score ) {
-            best_score = score;
-            local_path = path;
-          }
+      // sample across curvature
+      for( int i=0; i<radius_samples_; i++ ) {
+        double curvature = (max_curvature/radius_samples_) * (i+1);
+        //ROS_INFO_NAMED("ackermann_planner", "Considering curvature: %f", curvature);
+        double radius = 1/curvature;
+        std::vector<dubins_plus::Segment> path(dubins_plus::dubins_path(radius,
+              current_pose_msg, goal_pose.pose));
+        double score = scoreTrajectory(path, forward_dist, dtheta);
+        if( score < best_score ) {
+          best_score = score;
+          local_path = path;
         }
       }
+      
 
       ROS_INFO_NAMED("ackermann_planner", "Best path cost %f", best_score);
 
@@ -460,8 +474,8 @@ namespace ackermann_local_planner {
     return true;
   }
 
-  bool isForwards(geometry_msgs::PoseStamped &start,
-      geometry_msgs::PoseStamped &end) {
+  bool isForwards(const geometry_msgs::PoseStamped &start,
+      const geometry_msgs::PoseStamped &end) {
     return true; // TODO(hendrix): don't hardcode
   }
 
@@ -469,9 +483,9 @@ namespace ackermann_local_planner {
     return x*x;
   }
 
-  double dist(geometry_msgs::PoseStamped &start,
-      geometry_msgs::PoseStamped &end) {
-    return sqrt(sq(end.pose.position.x - start.pose.position.x) +
-                sq(end.pose.position.y - start.pose.position.y));
+  double dist(const geometry_msgs::PoseStamped &start,
+      const geometry_msgs::PoseStamped &end) {
+    return hypot((end.pose.position.x - start.pose.position.x),
+                 (end.pose.position.y - start.pose.position.y));
   }
 };

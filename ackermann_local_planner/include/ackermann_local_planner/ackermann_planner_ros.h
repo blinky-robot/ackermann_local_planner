@@ -148,7 +148,7 @@ namespace ackermann_local_planner {
       double min_radius_;
       double acc_lim_;
 
-      double forward_point_distance_;
+      double lookahead_factor_;
 
       double xy_goal_tolerance_;
       double yaw_goal_tolerance_;
@@ -178,14 +178,14 @@ namespace ackermann_local_planner {
   /**
    * @brief determine if one point is forward or backwards from another
    */
-  bool isForwards(geometry_msgs::PoseStamped &start,
-      geometry_msgs::PoseStamped &end);
+  bool isForwards(const geometry_msgs::PoseStamped &start,
+      const geometry_msgs::PoseStamped &end);
 
   /**
    * @brief compute the distance between two points
    */
-  double dist(geometry_msgs::PoseStamped &start,
-      geometry_msgs::PoseStamped &end);
+  double dist(const geometry_msgs::PoseStamped &start,
+      const geometry_msgs::PoseStamped &end);
 
 };
 #endif
