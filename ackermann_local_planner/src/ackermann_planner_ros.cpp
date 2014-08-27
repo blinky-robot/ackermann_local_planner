@@ -290,24 +290,32 @@ namespace ackermann_local_planner {
       // compute the curvature at the current point
       double local_curvature = 0;
       {
-        double dt = (next_pose.header.stamp - plan_pose.header.stamp).toSec();
-        double dx = (next_pose.pose.position.x - plan_pose.pose.position.x)/dt;
-        double dy = (next_pose.pose.position.x - plan_pose.pose.position.y)/dt;
-        local_curvature = hypot(dx, dy);
+        double dx = (next_pose.pose.position.x - plan_pose.pose.position.x);
+        double dy = (next_pose.pose.position.x - plan_pose.pose.position.y);
+        double yaw1 = tf::getYaw(plan_pose.pose.orientation);
+        double yaw2 = tf::getYaw(next_pose.pose.orientation);
+        double dtheta = fabs(angles::shortest_angular_distance(yaw1, yaw2));
+        double ds = hypot(dx, dy);
+        local_curvature = dtheta / ds;
       }
       if( plan_point > 0 ) {
         const geometry_msgs::PoseStamped & prev_pose = plan_[plan_point-1];
-        double dt = (plan_pose.header.stamp - prev_pose.header.stamp).toSec();
-        double dx = (plan_pose.pose.position.x - prev_pose.pose.position.x)/dt;
-        double dy = (plan_pose.pose.position.y - prev_pose.pose.position.y)/dt;
+        double dx = (plan_pose.pose.position.x - prev_pose.pose.position.x);
+        double dy = (plan_pose.pose.position.y - prev_pose.pose.position.y);
+        double yaw1 = tf::getYaw(prev_pose.pose.orientation);
+        double yaw2 = tf::getYaw(plan_pose.pose.orientation);
+        double dtheta = fabs(angles::shortest_angular_distance(yaw1, yaw2));
+        double ds = hypot(dx, dy);
         // average curvature to previous point with curvature to next point
-        local_curvature = (local_curvature + hypot(dx, dy))/2;
+        local_curvature = (local_curvature + dtheta/ds)/2;
       }
       // Pure pursuit lookahead
       // r = 1 / curvature
       // lookahend = factor * r
       //           = factor / curvature
       double forward_point_distance = lookahead_factor_ / local_curvature;
+      ROS_INFO_NAMED("ackermann_local_planner", "Local curvature %f, lookahead"
+          " distance %f", local_curvature, forward_point_distance);
       // get a point forward of where we are on the plan
       double forward_dist = 0;
       double dtheta = 0;
