@@ -53,6 +53,32 @@ PLUGINLIB_EXPORT_CLASS(ackermann_local_planner::AckermannPlannerROS, nav_core::B
 
 namespace ackermann_local_planner {
 
+  bool isForwards(const geometry_msgs::PoseStamped &start,
+      const geometry_msgs::PoseStamped &end) {
+    return true; // TODO(hendrix): don't hardcode
+  }
+
+  inline double sq(double x) {
+    return x*x;
+  }
+
+  double dist(const geometry_msgs::PoseStamped &start,
+      const geometry_msgs::PoseStamped &end) {
+    return hypot((end.pose.position.x - start.pose.position.x),
+                 (end.pose.position.y - start.pose.position.y));
+  }
+
+  double curvature(const geometry_msgs::PoseStamped & start,
+                   const geometry_msgs::PoseStamped & end ) {
+    double dx = (end.pose.position.x - start.pose.position.x);
+    double dy = (end.pose.position.x - start.pose.position.y);
+    double yaw1 = tf::getYaw(start.pose.orientation);
+    double yaw2 = tf::getYaw(end.pose.orientation);
+    double dtheta = fabs(angles::shortest_angular_distance(yaw1, yaw2));
+    double ds = hypot(dx, dy);
+    return dtheta / ds;
+  }
+
   void AckermannPlannerROS::reconfigureCB(AckermannPlannerConfig &config, uint32_t level) {
       max_vel_ = config.max_vel;
       min_vel_ = config.min_vel;
@@ -288,26 +314,11 @@ namespace ackermann_local_planner {
 
       // Pure pursuit algorithm (Coulter R. Craig, 1992)
       // compute the curvature at the current point
-      double local_curvature = 0;
-      {
-        double dx = (next_pose.pose.position.x - plan_pose.pose.position.x);
-        double dy = (next_pose.pose.position.x - plan_pose.pose.position.y);
-        double yaw1 = tf::getYaw(plan_pose.pose.orientation);
-        double yaw2 = tf::getYaw(next_pose.pose.orientation);
-        double dtheta = fabs(angles::shortest_angular_distance(yaw1, yaw2));
-        double ds = hypot(dx, dy);
-        local_curvature = dtheta / ds;
-      }
+      double local_curvature = curvature(plan_pose, next_pose);
       if( plan_point > 0 ) {
         const geometry_msgs::PoseStamped & prev_pose = plan_[plan_point-1];
-        double dx = (plan_pose.pose.position.x - prev_pose.pose.position.x);
-        double dy = (plan_pose.pose.position.y - prev_pose.pose.position.y);
-        double yaw1 = tf::getYaw(prev_pose.pose.orientation);
-        double yaw2 = tf::getYaw(plan_pose.pose.orientation);
-        double dtheta = fabs(angles::shortest_angular_distance(yaw1, yaw2));
-        double ds = hypot(dx, dy);
         // average curvature to previous point with curvature to next point
-        local_curvature = (local_curvature + dtheta/ds)/2;
+        local_curvature = (local_curvature + curvature(prev_pose, plan_pose))/2;
       }
       // Pure pursuit lookahead
       // r = 1 / curvature
@@ -480,20 +491,5 @@ namespace ackermann_local_planner {
 
     // return true if we were able to find a path, false otherwise
     return true;
-  }
-
-  bool isForwards(const geometry_msgs::PoseStamped &start,
-      const geometry_msgs::PoseStamped &end) {
-    return true; // TODO(hendrix): don't hardcode
-  }
-
-  inline double sq(double x) {
-    return x*x;
-  }
-
-  double dist(const geometry_msgs::PoseStamped &start,
-      const geometry_msgs::PoseStamped &end) {
-    return hypot((end.pose.position.x - start.pose.position.x),
-                 (end.pose.position.y - start.pose.position.y));
   }
 };
