@@ -147,7 +147,8 @@ namespace ackermann_local_planner {
       dsrv_->setCallback(cb);
     }
     else{
-      ROS_WARN("This planner has already been initialized, doing nothing.");
+      ROS_WARN_NAMED("ackermann_planner", "This planner has already been "
+          "initialized, doing nothing.");
     }
   }
 
@@ -278,7 +279,13 @@ namespace ackermann_local_planner {
 
     // if we don't have a plan, what are we doing here???
     if( plan_.size() < 2 ) {
-      return false;
+      ROS_WARN_NAMED("ackermann_planner", "Got empty plan! Goal reached?");
+      goal_reached_ = true;
+
+      // stop moving
+      cmd_vel.linear.x = 0;
+      cmd_vel.angular.z = 0;
+      return true;
     }
 
     nav_msgs::Odometry odom;
@@ -338,7 +345,7 @@ namespace ackermann_local_planner {
       //           = factor / curvature
       double local_radius = 1 / local_curvature;
       double forward_point_distance = lookahead_factor_ * local_radius;
-      ROS_INFO_NAMED("ackermann_local_planner", "Local curvature %f, radius %f"
+      ROS_INFO_NAMED("ackermann_planner", "Local curvature %f, radius %f"
           ", lookahead distance %f", local_curvature, local_radius,
           forward_point_distance);
       // get a point forward of where we are on the plan
@@ -360,7 +367,7 @@ namespace ackermann_local_planner {
           local_curvature = c;
           local_radius = 1 / local_curvature;
           forward_point_distance = lookahead_factor_ * local_radius;
-          ROS_INFO_NAMED("ackermann_local_planner", "Updated curvature %f, "
+          ROS_INFO_NAMED("ackermann_planner", "Updated curvature %f, "
               "radius %f and lookahead distance: %f", local_curvature,
               local_radius, forward_point_distance);
         }
