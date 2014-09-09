@@ -41,5 +41,6 @@ AckermannPlannerROS:
 
    publish_goal: true
    publish_near_point: true
+   lookahead_factor: 1.0
 
    move: true
