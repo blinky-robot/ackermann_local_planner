@@ -55,7 +55,19 @@ namespace ackermann_local_planner {
 
   bool isForwards(const geometry_msgs::PoseStamped &start,
       const geometry_msgs::PoseStamped &end) {
-    return true; // TODO(hendrix): don't hardcode
+    double yaw1 = tf::getYaw(start.pose.orientation);
+    //double yaw2 = tf::getYaw(end.pose.orientation);
+    //double angle = angles::shortest_angular_distance(yaw1, yaw2);
+
+    double dx = (end.pose.position.x - start.pose.position.x);
+    double dy = (end.pose.position.y - start.pose.position.y);
+    double diff_angle = atan2(dy, dx);
+
+    if( abs(angles::shortest_angular_distance(yaw1, diff_angle)) < M_PI/2 ) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   inline double sq(double x) {
