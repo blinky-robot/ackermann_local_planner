@@ -392,8 +392,19 @@ namespace ackermann_local_planner {
       geometry_msgs::Pose current_pose_msg;
       tf::poseTFToMsg(current_pose, current_pose_msg);
 
-      // path sampling
+      // if the path is backwards, invert the direction of initial and final
+      // poses
+      if( ! forward ) {
+        double start_yaw = tf::getYaw(current_pose_msg.orientation);
+        start_yaw += M_PI;
+        current_pose_msg.orientation = tf::createQuaternionMsgFromYaw(start_yaw);
 
+        double end_yaw = tf::getYaw(goal_pose.pose.orientation);
+        end_yaw += M_PI;
+        goal_pose.pose.orientation = tf::createQuaternionMsgFromYaw(end_yaw);
+      }
+
+      // path sampling
       std::vector<dubins_plus::Segment> local_path;
       double best_score = std::numeric_limits<double>::max();
       double max_curvature = 1/min_radius_;
@@ -491,6 +502,12 @@ namespace ackermann_local_planner {
       target_speed = std::max(target_speed, min_vel_);
 
       double target_angular = target_curvature * target_speed;
+
+      if( ! forward ) {
+        target_speed = -target_speed;
+        //target_angular = -target_angular;
+      }
+
       cmd_vel.linear.x = target_speed;
       cmd_vel.angular.z = target_angular;
 
