@@ -71,7 +71,7 @@ namespace ackermann_local_planner {
   double curvature(const geometry_msgs::PoseStamped & start,
                    const geometry_msgs::PoseStamped & end ) {
     double dx = (end.pose.position.x - start.pose.position.x);
-    double dy = (end.pose.position.x - start.pose.position.y);
+    double dy = (end.pose.position.y - start.pose.position.y);
     double yaw1 = tf::getYaw(start.pose.orientation);
     double yaw2 = tf::getYaw(end.pose.orientation);
     double dtheta = fabs(angles::shortest_angular_distance(yaw1, yaw2));
@@ -180,8 +180,8 @@ namespace ackermann_local_planner {
     double curve_cost;
     curve_cost = std::abs(dtheta - global_dtheta)/(M_PI/180.0);
 
-    ROS_INFO_NAMED("ackermann_planner", "Length cost: %f, curve cost: %f",
-        length_cost, curve_cost);
+    //ROS_INFO_NAMED("ackermann_planner", "Length cost: %f, curve cost: %f",
+    //    length_cost, curve_cost);
 
     //return length_cost + curve_cost;
     return length_cost;
@@ -324,14 +324,16 @@ namespace ackermann_local_planner {
       // r = 1 / curvature
       // lookahend = factor * r
       //           = factor / curvature
-      double forward_point_distance = lookahead_factor_ / local_curvature;
-      ROS_INFO_NAMED("ackermann_local_planner", "Local curvature %f, lookahead"
-          " distance %f", local_curvature, forward_point_distance);
+      double local_radius = 1 / local_curvature;
+      double forward_point_distance = lookahead_factor_ * local_radius;
+      ROS_INFO_NAMED("ackermann_local_planner", "Local curvature %f, radius %f"
+          ", lookahead distance %f", local_curvature, local_radius,
+          forward_point_distance);
       // get a point forward of where we are on the plan
       double forward_dist = 0;
       double dtheta = 0;
 
-      while( forward_dist < forward_point_distance &&
+      while( forward_dist < lookahead_factor_ / local_curvature &&
           i < plan_.size() &&
           isForwards(plan_pose, next_pose) == forward ) {
         plan_pose = plan_[i-1];
@@ -340,6 +342,16 @@ namespace ackermann_local_planner {
         dtheta += std::abs(angles::shortest_angular_distance(
               tf::getYaw(next_pose.pose.orientation),
               tf::getYaw(plan_pose.pose.orientation)));
+
+        double c = curvature(plan_pose, next_pose);
+        if( c > local_curvature ) {
+          local_curvature = c;
+          local_radius = 1 / local_curvature;
+          forward_point_distance = lookahead_factor_ * local_radius;
+          ROS_INFO_NAMED("ackermann_local_planner", "Updated curvature %f, "
+              "radius %f and lookahead distance: %f", local_curvature,
+              local_radius, forward_point_distance);
+        }
 
         i++;
       }
@@ -373,12 +385,12 @@ namespace ackermann_local_planner {
       std::vector<dubins_plus::Segment> local_path;
       double best_score = std::numeric_limits<double>::max();
       double max_curvature = 1/min_radius_;
-      //ROS_INFO_NAMED("ackermann_planner", "Maximum curvature: %f", max_curvature);
+      ROS_INFO_NAMED("ackermann_planner", "Maximum curvature: %f", max_curvature);
 
       // sample across curvature
       for( int i=0; i<radius_samples_; i++ ) {
         double curvature = (max_curvature/radius_samples_) * (i+1);
-        //ROS_INFO_NAMED("ackermann_planner", "Considering curvature: %f", curvature);
+        ROS_INFO_NAMED("ackermann_planner", "Considering curvature: %f", curvature);
         double radius = 1/curvature;
         std::vector<dubins_plus::Segment> path(dubins_plus::dubins_path(radius,
               current_pose_msg, goal_pose.pose));
