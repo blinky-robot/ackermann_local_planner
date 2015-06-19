@@ -140,7 +140,9 @@ namespace ackermann_local_planner {
 
       base_local_planner::OdometryHelperRos odom_helper_;
 
+      std::vector<geometry_msgs::PoseStamped> orig_global_plan;
       std::vector<geometry_msgs::PoseStamped> plan_;
+      double real_plan_length_;
 
       // Limits
       double max_vel_;
@@ -187,5 +189,12 @@ namespace ackermann_local_planner {
   double dist(const geometry_msgs::PoseStamped &start,
       const geometry_msgs::PoseStamped &end);
 
+  void set_angle(geometry_msgs::PoseStamped* pose, double angle);
+
+  void pointToNext(std::vector<geometry_msgs::PoseStamped>& path, int index);
+
+  double getYaw(geometry_msgs::PoseStamped pose);
+
+  void interpolate(std::vector<geometry_msgs::PoseStamped>& path, int start_index, int end_index);
 };
 #endif

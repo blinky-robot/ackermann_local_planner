@@ -47,6 +47,7 @@
 #include <base_local_planner/goal_functions.h>
 #include <nav_msgs/Path.h>
 #include <angles/angles.h>
+#include <tf/transform_datatypes.h>
 
 //register this planner as a BaseLocalPlanner plugin
 PLUGINLIB_EXPORT_CLASS(ackermann_local_planner::AckermannPlannerROS, nav_core::BaseLocalPlanner)
@@ -58,6 +59,8 @@ namespace ackermann_local_planner {
     double yaw1 = tf::getYaw(start.pose.orientation);
     //double yaw2 = tf::getYaw(end.pose.orientation);
     //double angle = angles::shortest_angular_distance(yaw1, yaw2);
+
+    return true;
 
     double dx = (end.pose.position.x - start.pose.position.x);
     double dy = (end.pose.position.y - start.pose.position.y);
@@ -188,7 +191,7 @@ namespace ackermann_local_planner {
     }
     // normalized to a base of 1.0. Values > 1.0 are worse
     //  don't count paths shorter than the global path as better
-    double length_cost = std::max(local_length/global_length, 1.0);
+    double length_cost = std::max(std::abs(local_length/global_length), 1.0);
 
     double curve_cost;
     curve_cost = std::abs(dtheta - global_dtheta)/(M_PI/180.0);
@@ -205,21 +208,18 @@ namespace ackermann_local_planner {
       ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
       return false;
     }
-    // Transform global plan into local coordinate space
-    /*
-    tf::Stamped<tf::Pose> pose;
-    costmap_ros_->getRobotPose(pose);
-    ROS_INFO_NAMED("ackermann_planner", "Transforming global plan into %s frame", costmap_ros_->getGlobalFrameID().c_str());
-    base_local_planner::transformGlobalPlan(*tf_, orig_global_plan, pose,
-        *costmap_ros_->getCostmap(), costmap_ros_->getGlobalFrameID(), plan_);
-        */
+    this->orig_global_plan = orig_global_plan;
     //if( plan_ == orig_global_plan ) {
     if( false ) {
       ROS_WARN("Got the same plan again");
     } else {
       ROS_INFO("Got new plan");
-      plan_ = orig_global_plan;
     }
+
+    /*for(int i = 0; i < plan_.size(); i++)
+    {
+      ROS_WARN("PLAN_[%02d] = %lf", i, tf::getYaw(plan_[i].pose.orientation));
+    }*/
 
     goal_reached_ = false;
     last_plan_point_ = 0; // we're at the beginning of the plan
@@ -277,6 +277,18 @@ namespace ackermann_local_planner {
     //  - have a config switch that turns off the command output from the
     //    planner. default it to ON
 
+    {
+    // Transform global plan into local coordinate space
+    tf::Stamped<tf::Pose> pose;
+    costmap_ros_->getRobotPose(pose);
+    ROS_INFO_NAMED("ackermann_planner", "Transforming global plan into %s frame", costmap_ros_->getGlobalFrameID().c_str());
+
+    real_plan_length_ = orig_global_plan.size();
+
+    base_local_planner::transformGlobalPlan(*tf_, orig_global_plan, pose,
+        *costmap_ros_->getCostmap(), costmap_ros_->getGlobalFrameID(), plan_);
+    }
+
     // if we don't have a plan, what are we doing here???
     if( plan_.size() < 2 ) {
       ROS_WARN_NAMED("ackermann_planner", "Got empty plan! Goal reached?");
@@ -325,7 +337,18 @@ namespace ackermann_local_planner {
       near_point_pub_.publish(plan_pose);
     }
 
-    if( plan_point < plan_.size() - 1 ) {
+    geometry_msgs::PoseStamped current_pose_msg;
+    tf::poseStampedTFToMsg(current_pose, current_pose_msg);
+
+    double dist_to_global_goal = dist(current_pose_msg, plan_[plan_.size() - 1]);
+
+    if( dist_to_global_goal < xy_goal_tolerance_ )
+    {
+      ROS_INFO_NAMED("ackermann_planner", "We're %lfm from goal, which is within tolerance (%lf)",
+          dist_to_global_goal, xy_goal_tolerance_);
+      goal_reached_ = true;
+    }
+    else if( plan_point < plan_.size() - 1 ) {
       int i = plan_point + 1;
       geometry_msgs::PoseStamped next_pose = plan_[i];
       // get the direction (forward/backwards) on the plan
@@ -352,27 +375,37 @@ namespace ackermann_local_planner {
       double forward_dist = 0;
       double dtheta = 0;
 
-      while( forward_dist < lookahead_factor_ / local_curvature &&
+      while( forward_dist < fabs(lookahead_factor_ / local_curvature) &&
           i < plan_.size() &&
           isForwards(plan_pose, next_pose) == forward ) {
         plan_pose = plan_[i-1];
         next_pose = plan_[i];
         forward_dist += dist(plan_pose, next_pose);
-        dtheta += std::abs(angles::shortest_angular_distance(
+        dtheta += angles::shortest_angular_distance(
               tf::getYaw(next_pose.pose.orientation),
-              tf::getYaw(plan_pose.pose.orientation)));
+              tf::getYaw(plan_pose.pose.orientation));
 
         double c = curvature(plan_pose, next_pose);
-        if( c > local_curvature ) {
+        if( fabs(c) > fabs(local_curvature) ) {
           local_curvature = c;
           local_radius = 1 / local_curvature;
           forward_point_distance = lookahead_factor_ * local_radius;
           ROS_INFO_NAMED("ackermann_planner", "Updated curvature %f, "
-              "radius %f and lookahead distance: %f", local_curvature,
-              local_radius, forward_point_distance);
+              "radius %f and lookahead distance: %f (index %d)", local_curvature,
+              local_radius, forward_point_distance, i);
         }
 
         i++;
+      }
+
+      ROS_INFO_NAMED("ackermann_planner", "Choosing goal %02d of %02d in %02d", i, plan_.size(), orig_global_plan.size());
+
+      if (i < orig_global_plan.size())
+      {
+        ROS_INFO_NAMED("ackermann_planner", "Fixing the target orientation");
+        next_pose.pose.orientation = tf::createQuaternionMsgFromYaw(atan2(
+          next_pose.pose.position.y - plan_pose.pose.position.y,
+          next_pose.pose.position.x - plan_pose.pose.position.x));
       }
 
       ROS_INFO_NAMED("ackermann_planner", "Target pose #%d is %f meters away",
@@ -420,7 +453,7 @@ namespace ackermann_local_planner {
       // sample across curvature
       for( int i=0; i<radius_samples_; i++ ) {
         double curvature = (max_curvature/radius_samples_) * (i+1);
-        ROS_INFO_NAMED("ackermann_planner", "Considering curvature: %f", curvature);
+        //ROS_INFO_NAMED("ackermann_planner", "Considering curvature: %f", curvature);
         double radius = 1/curvature;
         std::vector<dubins_plus::Segment> path(dubins_plus::dubins_path(radius,
               current_pose_msg, goal_pose.pose));
@@ -539,5 +572,47 @@ namespace ackermann_local_planner {
 
     // return true if we were able to find a path, false otherwise
     return true;
+  }
+
+  double getGoalPositionDistance(const tf::Stamped<tf::Pose>& global_pose, double goal_x, double goal_y) {
+    return hypot(goal_x - global_pose.getOrigin().x(), goal_y - global_pose.getOrigin().y());
+  }
+
+  double getGoalOrientationAngleDifference(const tf::Stamped<tf::Pose>& global_pose, double goal_th) {
+    double yaw = tf::getYaw(global_pose.getRotation());
+    return angles::shortest_angular_distance(yaw, goal_th);
+  }
+
+  void set_angle(geometry_msgs::PoseStamped* pose, double angle)
+  {
+    pose->pose.orientation = tf::createQuaternionMsgFromYaw(angle); 
+  }
+
+  void pointToNext(std::vector<geometry_msgs::PoseStamped>& path, int index)
+  {
+    double x0 = path[ index ].pose.position.x, 
+           y0 = path[ index ].pose.position.y,
+           x1 = path[index+1].pose.position.x,
+           y1 = path[index+1].pose.position.y;
+         
+    double angle = atan2(y1-y0,x1-x0);
+    set_angle(&path[index], angle);
+  }
+
+  double getYaw(geometry_msgs::PoseStamped pose)
+  {
+    return tf::getYaw(pose.pose.orientation);
+  }
+
+  void interpolate(std::vector<geometry_msgs::PoseStamped>& path, int start_index, int end_index)
+  {
+    double start_yaw = getYaw(path[start_index]),
+           end_yaw   = getYaw(path[end_index  ]);
+    double diff = angles::shortest_angular_distance(start_yaw, end_yaw);
+    double increment = diff/(end_index-start_index);
+    for(int i=start_index; i<=end_index; i++){
+        double angle = start_yaw + increment * i;
+        set_angle(&path[i], angle);
+    }
   }
 };
