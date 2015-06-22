@@ -18,6 +18,8 @@ generate_dynamic_reconfigure_options(
   cfg/AckermannPlanner.cfg
 )
 
+catkin_package()
+
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
